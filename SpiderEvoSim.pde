@@ -7,6 +7,8 @@ import processing.sound.*;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.Arrays;
+import java.util.concurrent.*;
+import java.util.stream.IntStream;
 
 int CENTER_X = 960; // try setting this to 960 or 961 if there is horizontal camera-pan-drifting
 String[] soundFileNames = {"slap0.wav","slap1.wav","slap2.wav","splat0.wav","splat1.wav","splat2.wav","boop1.wav","boop2.wav","jump.wav","news.wav"};
@@ -39,7 +41,6 @@ boolean TRAP_MOUSE = true;
 boolean lock_highlight = false;
 
 GLWindow r;
-
 int LEG_COUNT = 4;
 int GENES_PER_LEG = STEPS_CYCLE*4+1; //13
 int GENOME_LENGTH = LEG_COUNT*GENES_PER_LEG;
@@ -110,12 +111,14 @@ double safeAdd(double a, double b) {
     }
     return result;
 }
+
 ArrayList<Spider> createSpiders(Room room) {
     int START_SPIDER_COUNT = 300;
     ArrayList<Spider> result = new ArrayList<Spider>();
 
-    // Create a thread pool with a fixed number of threads
-    ExecutorService executor = Executors.newFixedThreadPool(4);
+    int numberOfThreads = Math.min(Runtime.getRuntime().availableProcessors(), 4);  // Limit to 4 threads or available CPUs
+    ExecutorService executor = Executors.newFixedThreadPool(numberOfThreads);
+
     ArrayList<Future<Spider>> futureSpiders = new ArrayList<Future<Spider>>();
 
     for (int s = 0; s < START_SPIDER_COUNT; s++) {
@@ -330,34 +333,45 @@ void doPhysics(){
   player.doPhysics(room);
 }
 
-float getBiodiversity(){
-  float[] meanGenome = new float[GENOME_LENGTH];
-  for(int g = 0; g < GENOME_LENGTH; g++){
-    meanGenome[g] = 0;
-  }
-  for(int s = 0; s < spiders.size(); s++){
-    for(int g = 0; g < GENOME_LENGTH; g++){
-      meanGenome[g] += spiders.get(s).genome[g];
+float getBiodiversity() {
+    int spiderCount = spiders.size();
+    if (spiderCount == 0) return 0;
+
+    // Create arrays for genome mean and variance calculation
+    float[] meanGenome = new float[GENOME_LENGTH];
+    Arrays.fill(meanGenome, 0);
+
+    // Calculate mean values using a parallel stream
+    spiders.parallelStream().forEach(s -> {
+        for (int g = 0; g < GENOME_LENGTH; g++) {
+            meanGenome[g] += s.genome[g];
+        }
+    });
+
+    // Average the mean values
+    for (int g = 0; g < GENOME_LENGTH; g++) {
+        meanGenome[g] /= spiderCount;
     }
-  }
-  for(int g = 0; g < GENOME_LENGTH; g++){
-    meanGenome[g] /= spiders.size();
-  }
-  float[] variances = new float[GENOME_LENGTH];
-  for(int g = 0; g < GENOME_LENGTH; g++){
-    variances[g] = 0;
-  }
-  for(int s = 0; s < spiders.size(); s++){
-    for(int g = 0; g < GENOME_LENGTH; g++){
-      variances[g] += pow(spiders.get(s).genome[g]-meanGenome[g],2);
+
+    // Calculate variance in parallel
+    float[] variances = new float[GENOME_LENGTH];
+    Arrays.fill(variances, 0);
+
+    spiders.parallelStream().forEach(s -> {
+        for (int g = 0; g < GENOME_LENGTH; g++) {
+            variances[g] += Math.pow(s.genome[g] - meanGenome[g], 2);
+        }
+    });
+
+    // Calculate the total diversity
+    float total_diversity = 0;
+    for (int g = 0; g < GENOME_LENGTH; g++) {
+        total_diversity += Math.sqrt(variances[g] / spiderCount);
     }
-  }
-  float total_diversity = 0;
-  for(int g = 0; g < GENOME_LENGTH; g++){
-    total_diversity += sqrt(variances[g]/spiders.size());
-  }
-  return total_diversity/GENOME_LENGTH*100;
+
+    return total_diversity / GENOME_LENGTH * 100;
 }
+
 void collectData() {
     if (ticks % CHANGE_WINDOWS_EVERY == 0) {
         for (int w = 0; w < windows.size(); w++) {
@@ -366,15 +380,15 @@ void collectData() {
     }
 
     if (ticks % (long)TICKS_PER_DAY == 0) {
-        // Initialize the datum array with 0.0f values in one step
-        Float[] datum = new Float[STAT_COUNT];
-        Arrays.fill(datum, 0.0f);  // Fill all with 0.0f at once
-
-        // Get spider count to avoid repeated calls to spiders.size()
+        // Cache the spider count to avoid repeated calls to spiders.size()
         int spiderCount = spiders.size();
-        
-        // If there are spiders, accumulate data into the datum array
+
+        // Initialize the datum array before the conditional block
+        Float[] datum = new Float[STAT_COUNT];
+        Arrays.fill(datum, 0.0f);
+
         if (spiderCount > 0) {
+            // Accumulate data into the datum array
             for (int s = 0; s < spiderCount; s++) {
                 spiders.get(s).writeData(datum);
             }
@@ -386,8 +400,8 @@ void collectData() {
         }
 
         // Additional data (no need for division)
-        datum[1] = (float)dailyDeaths;
-        datum[2] = (float)(swattersSeenTotal - dailyDeaths);
+        datum[1] = (float) dailyDeaths;
+        datum[2] = (float) (swattersSeenTotal - dailyDeaths);
         datum[4] = getBiodiversity();
 
         // Reset daily statistics
@@ -427,6 +441,7 @@ void collectData() {
         sfx[9].amp(1.0 - min(0.8, (playback_speed - 1) / 200.0));
     }
 }
+
 
 float getUnit(float a, float b){
   float diff = b-a;
