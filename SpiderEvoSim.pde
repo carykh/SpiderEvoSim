@@ -151,13 +151,19 @@ void setup(){
   r.setPointerVisible(false);
   g = createGraphics(1920,1080,P3D);
 }
-void draw(){
-  doMouse();
-  doPhysics();
-  drawVisuals();
-  image(g,0,0);
-  drawUI();
-  frames++;
+void draw() {
+    doMouse();
+    doPhysics();
+    drawVisuals();
+    image(g, 0, 0);
+    drawUI();
+    frames++;    
+    if (camera[1] < -1) {
+        camera[1] = -1;
+    }
+    if (camera[1] > 1) {
+        camera[1] = 1;
+    }
 }
 void checkHighlight(){
   if(!lock_highlight){
