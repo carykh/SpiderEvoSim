@@ -1,5 +1,12 @@
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Future;
 import com.jogamp.newt.opengl.GLWindow;
 import processing.sound.*;
+import java.util.HashSet;
+import java.util.Set;
+
 
 int CENTER_X = 960; // try setting this to 960 or 961 if there is horizontal camera-pan-drifting
 String[] soundFileNames = {"slap0.wav","slap1.wav","slap2.wav","splat0.wav","splat1.wav","splat2.wav","boop1.wav","boop2.wav","jump.wav","news.wav"};
@@ -103,22 +110,55 @@ double safeAdd(double a, double b) {
     }
     return result;
 }
-ArrayList<Spider> createSpiders(Room room){
-  int START_SPIDER_COUNT = 300;
-  ArrayList<Spider> result = new ArrayList<Spider>(0);
-  for(int s = 0; s < START_SPIDER_COUNT; s++){
-    Spider newSpider = new Spider(s, room);
-    result.add(newSpider);
-  }
-  return result;
+ArrayList<Spider> createSpiders(Room room) {
+    int START_SPIDER_COUNT = 300;
+    ArrayList<Spider> result = new ArrayList<Spider>();
+
+    // Create a thread pool with a fixed number of threads
+    ExecutorService executor = Executors.newFixedThreadPool(4);
+    ArrayList<Future<Spider>> futureSpiders = new ArrayList<Future<Spider>>();
+
+    for (int s = 0; s < START_SPIDER_COUNT; s++) {
+        final int spiderIndex = s;  // Final or effectively final for lambda use
+        futureSpiders.add(executor.submit(() -> new Spider(spiderIndex, room)));
+    }
+
+    // Collect results
+    for (Future<Spider> future : futureSpiders) {
+        try {
+            result.add(future.get());  // Blocks until the thread completes
+        } catch (Exception e) {
+            e.printStackTrace();  // Handle exception
+        }
+    }
+
+    // Shut down the executor service
+    executor.shutdown();
+
+    return result;
 }
-void createSwatters(Room room, int START_SPIDER_COUNT){
-  swatters = new ArrayList<Swatter>(0);
-  for(int s = 0; s < START_SPIDER_COUNT; s++){
-    float perc = (s+0.5)/START_SPIDER_COUNT*1.4-0.4;
-    Swatter newSwatter = new Swatter(s, perc, room, swatters);
-    swatters.add(newSwatter);
-  }
+
+void createSwatters(Room room, int START_SPIDER_COUNT) {
+    swatters = new ArrayList<Swatter>();
+
+    ExecutorService executor = Executors.newFixedThreadPool(4);
+    ArrayList<Future<Swatter>> futureSwatters = new ArrayList<Future<Swatter>>();
+
+    for (int s = 0; s < START_SPIDER_COUNT; s++) {
+        final int swatterIndex = s;
+        float perc = (s + 0.5f) / START_SPIDER_COUNT * 1.4f - 0.4f;
+        futureSwatters.add(executor.submit(() -> new Swatter(swatterIndex, perc, room, swatters)));
+    }
+
+    for (Future<Swatter> future : futureSwatters) {
+        try {
+            swatters.add(future.get());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    executor.shutdown();
 }
 
 void setup(){
