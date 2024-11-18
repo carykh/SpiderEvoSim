@@ -59,20 +59,42 @@ class Spider{
     g.popMatrix();
     return value;
   }
-  color getColor(){
+color getColor() {
     int c = swattersSeen.size();
-    if(c == 0 || c == 1){
-      return color(0,0,0,255);
-    }else{
-      if(c < 6){
-        float fac = (c-1)/5.0;
-        return color(0,fac*140,255-fac*255,255);
-      }else{
-        float fac = min(1,(c-6)/19.0);
-        return color(255*fac,140-fac*140,0,255);
-      }
+    if (c == 0) {
+        return color(0, 0, 0, 255); // Black
+    } else {
+        if (c <= 5) {
+            float fac = c / 5.0;
+            return color(0, fac * 140, 255 - fac * 255, 255); // Blue transition
+        } else if (c <= 20) {
+            float fac = (c - 5) / 15.0;
+            return color(fac * 255, 140 + fac * 155, 20, 255); // Green with a higher base for better contrast
+        } else if (c <= 40) {
+            float fac = (c - 20) / 20.0;
+            return color(255, 255 - fac * 115, 50, 255); // Yellow with a richer tone
+        } else if (c <= 100) {
+            float fac = (c - 40) / 60.0;
+            return color(255, 140 - fac * 140, 0, 255); // Pink transition
+        } else if (c <= 200) {
+            float fac = (c - 100) / 100.0;
+            return color(255, 0, fac * 255, 255); // Purple transition
+        } else if (c <= 500) {
+            float fac = (c - 200) / 300.0;
+            return color(255 - fac * 141, 20, 255, 255); // Deeper purple to cyan
+        } else if (c <= 1000) {
+            float fac = (c - 500) / 500.0;
+            return color(114 - fac * 114, fac * 255, 255, 255); // Cyan transition
+        } else if (c <= 4000) {
+            float fac = (c - 1000) / 3000.0;
+            return color(225 + fac * 30, 210 - fac * 20, 30 + fac * 50); // Gold with richer, deeper hues
+        } else {
+            float fac = min(1, (c - 4000) / 6000.0);
+            return color(255, 202 + fac * 53, fac * 255); // Transition to white
+        }
     }
-  }
+}
+
   color transitionColor(color a, color b, float prog){
     float newR = lerp(red(a), red(b), prog);
     float newG = lerp(green(a), green(b), prog);
