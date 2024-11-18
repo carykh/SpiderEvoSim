@@ -2,14 +2,17 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
-import com.jogamp.newt.opengl.GLWindow;
-import processing.sound.*;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.Arrays;
 import java.util.concurrent.*;
 import java.util.stream.IntStream;
+import java.util.ArrayList;
+import java.util.List;
+import com.jogamp.newt.opengl.GLWindow;
+import processing.sound.*;
 
+int threadsUsed = 4;  // Number of threads to be used, can be changed as per the requirement
 int CENTER_X = 960; // try setting this to 960 or 961 if there is horizontal camera-pan-drifting
 String[] soundFileNames = {"slap0.wav","slap1.wav","slap2.wav","splat0.wav","splat1.wav","splat2.wav","boop1.wav","boop2.wav","jump.wav","news.wav"};
 SoundFile[] sfx;
@@ -113,55 +116,73 @@ double safeAdd(double a, double b) {
 }
 
 ArrayList<Spider> createSpiders(Room room) {
-    int START_SPIDER_COUNT = 300;
-    ArrayList<Spider> result = new ArrayList<Spider>();
-
-    int numberOfThreads = Math.min(Runtime.getRuntime().availableProcessors(), 4);  // Limit to 4 threads or available CPUs
-    ExecutorService executor = Executors.newFixedThreadPool(numberOfThreads);
-
-    ArrayList<Future<Spider>> futureSpiders = new ArrayList<Future<Spider>>();
-
-    for (int s = 0; s < START_SPIDER_COUNT; s++) {
-        final int spiderIndex = s;  // Final or effectively final for lambda use
-        futureSpiders.add(executor.submit(() -> new Spider(spiderIndex, room)));
+    int START_SPIDER_COUNT = 300;  // Number of spiders to create
+    ArrayList<Spider> result = new ArrayList<>();
+    
+    int batchSize = 50;  // Define the size of each batch
+    int numberOfBatches = (int) Math.ceil((double) START_SPIDER_COUNT / batchSize);
+    
+    ExecutorService executor = Executors.newFixedThreadPool(threadsUsed);  // Use threadsUsed variable
+    List<Callable<Void>> tasks = new ArrayList<>();
+    
+    for (int batch = 0; batch < numberOfBatches; batch++) {
+        final int start = batch * batchSize;
+        final int end = Math.min(start + batchSize, START_SPIDER_COUNT);
+        
+        tasks.add(() -> {
+            for (int s = start; s < end; s++) {
+                Spider spider = new Spider(s, room);
+                synchronized (result) {  // Ensure thread safety when adding to the result list
+                    result.add(spider);
+                }
+            }
+            return null;
+        });
     }
-
-    // Collect results
-    for (Future<Spider> future : futureSpiders) {
-        try {
-            result.add(future.get());  // Blocks until the thread completes
-        } catch (Exception e) {
-            e.printStackTrace();  // Handle exception
-        }
+    
+    try {
+        executor.invokeAll(tasks);
+    } catch (InterruptedException e) {
+        e.printStackTrace();
+    } finally {
+        executor.shutdown();
     }
-
-    // Shut down the executor service
-    executor.shutdown();
 
     return result;
 }
 
 void createSwatters(Room room, int START_SPIDER_COUNT) {
-    swatters = new ArrayList<Swatter>();
-
-    ExecutorService executor = Executors.newFixedThreadPool(4);
-    ArrayList<Future<Swatter>> futureSwatters = new ArrayList<Future<Swatter>>();
-
-    for (int s = 0; s < START_SPIDER_COUNT; s++) {
-        final int swatterIndex = s;
-        float perc = (s + 0.5f) / START_SPIDER_COUNT * 1.4f - 0.4f;
-        futureSwatters.add(executor.submit(() -> new Swatter(swatterIndex, perc, room, swatters)));
+    swatters = new ArrayList<>();
+    
+    int batchSize = 50;  // Define the size of each batch
+    int numberOfBatches = (int) Math.ceil((double) START_SPIDER_COUNT / batchSize);
+    
+    ExecutorService executor = Executors.newFixedThreadPool(threadsUsed);  // Use threadsUsed variable
+    List<Callable<Void>> tasks = new ArrayList<>();
+    
+    for (int batch = 0; batch < numberOfBatches; batch++) {
+        final int start = batch * batchSize;
+        final int end = Math.min(start + batchSize, START_SPIDER_COUNT);
+        
+        tasks.add(() -> {
+            for (int s = start; s < end; s++) {
+                float perc = (s + 0.5f) / START_SPIDER_COUNT * 1.4f - 0.4f;
+                Swatter swatter = new Swatter(s, perc, room, swatters);
+                synchronized (swatters) {  // Ensure thread safety when adding to the swatters list
+                    swatters.add(swatter);
+                }
+            }
+            return null;
+        });
     }
-
-    for (Future<Swatter> future : futureSwatters) {
-        try {
-            swatters.add(future.get());
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+    
+    try {
+        executor.invokeAll(tasks);
+    } catch (InterruptedException e) {
+        e.printStackTrace();
+    } finally {
+        executor.shutdown();
     }
-
-    executor.shutdown();
 }
 
 void setup(){
@@ -265,7 +286,6 @@ String dateNumToMonthString(int d) {
         return monthNames[0] + " 1";
     }
     
-    int totalDays = 0;
     for (int m = 0; m < 12; m++) {
         if (d < monthDays[m]) {
             return monthNames[m] + " " + (d + 1);
