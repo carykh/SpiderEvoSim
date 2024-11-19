@@ -225,7 +225,27 @@ void setup(){
   r.setPointerVisible(false);
   g = createGraphics(1920,1080,P3D);
 }
+//FPS counter
+ArrayList<Long> frameTimestamps = new ArrayList<>(); // To store frame timestamps
+float averageFps = 0; // Average FPS over the last 4 seconds
+
 void draw() {
+    // Capture current time in milliseconds
+    long currentTime = millis();
+    frameTimestamps.add(currentTime);
+    
+    // Remove timestamps older than 4 seconds
+    while (frameTimestamps.size() > 0 && frameTimestamps.get(0) < currentTime - 4000) {
+        frameTimestamps.remove(0);
+    }
+    
+    // Calculate average FPS
+    if (frameTimestamps.size() > 1) {
+        float elapsedSeconds = (frameTimestamps.get(frameTimestamps.size() - 1) - frameTimestamps.get(0)) / 1000.0f;
+        averageFps = (frameTimestamps.size() - 1) / elapsedSeconds;
+    }
+
+    // Original draw logic
     doMouse();
     doPhysics();
     drawVisuals();
@@ -259,20 +279,28 @@ Spider checkHighlightHelper(){
   return answer;
 }
 
-void drawUI(){
-  noStroke();
-  fill(0);
-  float M = 1;
-  float W = 20;
-  rect(width/2-M,height/2-W,M*2,W*2);
-  rect(width/2-W,height/2-M,W*2,M*2);
-  if(highlight_spider != null){
-    PGraphics genomePanel = highlight_spider.drawGenome();
-    image(genomePanel,width-genomePanel.width-30,height-genomePanel.height-30);
-  }
-  textAlign(LEFT);
-  textSize(50);
-  text(ticksToDate(ticks),20,65);
+void drawUI() {
+    noStroke();
+    fill(0);
+    float M = 1;
+    float W = 20;
+    rect(width / 2 - M, height / 2 - W, M * 2, W * 2);
+    rect(width / 2 - W, height / 2 - M, W * 2, M * 2);
+    
+    if (highlight_spider != null) {
+        PGraphics genomePanel = highlight_spider.drawGenome();
+        image(genomePanel, width - genomePanel.width - 30, height - genomePanel.height - 30);
+    }
+    
+    textAlign(LEFT);
+    textSize(50);
+    fill(255); // Set text color to white for visibility
+    text(ticksToDate(ticks), 20, 65);
+    
+    // Display FPS
+    textAlign(RIGHT);
+    textSize(25);
+    text("FPS: " + nf(averageFps, 0, 2), width - 20, 30); // Display the FPS in the top-right corner
 }
 
 String dateNumToMonthString(int d) {
