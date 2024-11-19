@@ -616,7 +616,9 @@ void drawVisuals(){
   drawButtons();
   g.popMatrix();
   g.endDraw();
+//Most demanding by far!
 }
+
 void drawWindows(){
   for(int w = 0; w < windows.size(); w++){
     windows.get(w).drawWindow(room);
