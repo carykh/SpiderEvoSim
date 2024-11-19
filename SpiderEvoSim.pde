@@ -611,37 +611,11 @@ void drawVisuals(){
   player.drawPlayer();
   drawWindows();
   checkHighlight();
-<<<<<<< HEAD
-  
-    long startTime = System.nanoTime();
-    //Most demanding by far!
-    drawSpiders(room);
-    long afterDrawSpiders = System.nanoTime();
-
-    drawSwatters(room);
-    long afterDrawSwatters = System.nanoTime();
-
-    drawButtons();
-    long afterDrawButtons = System.nanoTime();
-
-    g.popMatrix();
-    g.endDraw();
-    long endTime = System.nanoTime();
-
-    // Print profiling results
-    println("Draw Spiders: " + (afterDrawSpiders - afterCheckHighlight) / 1e6 + " ms");
-    println("Draw Swatters: " + (afterDrawSwatters - afterDrawSpiders) / 1e6 + " ms");
-    println("Draw Buttons: " + (afterDrawButtons - afterDrawSwatters) / 1e6 + " ms");
-    println("Pop/EndDraw: " + (endTime - afterDrawButtons) / 1e6 + " ms");
-    println("Total DrawVisuals Time: " + (endTime - startTime) / 1e6 + " ms");
-=======
-  drawSpiders(room);
+  drawSpiders(room); //Most demanding
   drawSwatters(room);
   drawButtons();
   g.popMatrix();
-  g.endDraw();
-//Most demanding by far!
->>>>>>> parent of 9f71ced (small amount of debugging)
+  g.endDraw(); //Graph update
 }
 
 void drawWindows(){
