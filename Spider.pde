@@ -12,8 +12,7 @@ class Spider{
   int generation;
   int birth_tick;
   Spider parent;
-  Set<Integer> swattersSeen = new HashSet<>();
-
+  ArrayList<Integer> swattersSeen = new ArrayList<Integer>(0); 
   
   public Spider(int i, Room room){
     parent = null;
@@ -44,99 +43,70 @@ class Spider{
     return min(max(val,min_),max_);
   }
   float cursorOnSpider(){
-    // Cache the real coordinates to avoid repeated calls
     float[] realCoor = room.wallCoor_to_realCoor(coor);
     g.pushMatrix();
     aTranslate(realCoor);
     float MAX_DIST_MOUSE = 100;
     float value = -99999;
-    
-    // Calculate screen positions only once
-    float x1 = g.screenX(0, 0, 0);
-    float y1 = g.screenY(0, 0, 0);
-    float x2 = g.screenX(0, MAX_LEG_SPAN, 0);
-    float y2 = g.screenY(0, MAX_LEG_SPAN, 0);
-    
-    // Calculate distance from the center only once
-    float distFromCenter = dist(x1, y1, width / 2, height / 2);
-    float distLegSpan = dist(x1, y1, x2, y2);
-
-    // Use pre-calculated distances to optimize logic
-    if (distFromCenter < distLegSpan && distFromCenter < MAX_DIST_MOUSE) {
-        value = g.screenZ(0, 0, 0);
+    float x1 = g.screenX(0,0,0);
+    float y1 = g.screenY(0,0,0);
+    float x2 = g.screenX(0,MAX_LEG_SPAN,0);
+    float y2 = g.screenY(0,MAX_LEG_SPAN,0);
+    float distFromCenter = dist(x1,y1,width/2,height/2);
+    if(distFromCenter < dist(x1,y1,x2,y2) && distFromCenter < MAX_DIST_MOUSE){
+      value = g.screenZ(0,0,0);
     }
-    
     g.popMatrix();
     return value;
-}
-
-color getColor() {
+  }
+  
+  color getColor() {
     int c = swattersSeen.size();
-    float fac;
-    
     if (c == 0) {
         return color(0, 0, 0, 255); // Black
-    } 
-    
-    // Define ranges and their color transitions
-    if (c <= 5) {
-        fac = c / 5.0;
-        return createColor(0, fac * 140, 255 - fac * 255); // Blue transition
-    } 
-    else if (c <= 20) {
-        fac = (c - 5) / 15.0;
-        return createColor(fac * 255, 140 + fac * 155, 20); // Green with a higher base for better contrast
-    } 
-    else if (c <= 40) {
-        fac = (c - 20) / 20.0;
-        return createColor(255, 255 - fac * 115, 50); // Yellow with a richer tone
-    } 
-    else if (c <= 100) {
-        fac = (c - 40) / 60.0;
-        return createColor(255, 140 - fac * 140, 0); // Pink transition
-    } 
-    else if (c <= 200) {
-        fac = (c - 100) / 100.0;
-        return createColor(255, 0, fac * 255); // Purple transition
-    } 
-    else if (c <= 500) {
-        fac = (c - 200) / 300.0;
-        return createColor(255 - fac * 141, 20, 255); // Deeper purple to cyan
-    } 
-    else if (c <= 1000) {
-        fac = (c - 500) / 500.0;
-        return createColor(114 - fac * 114, fac * 255, 255); // Cyan transition
-    } 
-    else if (c <= 4000) {
-        fac = (c - 1000) / 3000.0;
-        return createColor(225 + fac * 30, 210 - fac * 20, 30 + fac * 50); // Gold with richer, deeper hues
-    } 
-    else {
-        fac = min(1, (c - 4000) / 6000.0);
-        return createColor(255, 202 + fac * 53, fac * 255); // Transition to white
+    } else {
+        if (c <= 5) {
+            float fac = c / 5.0;
+            return color(0, fac * 140, 255 - fac * 255, 255); // Blue transition
+        } else if (c <= 20) {
+            float fac = (c - 5) / 15.0;
+            return color(fac * 255, 140 + fac * 155, 20, 255); // Green with a higher base for better contrast
+        } else if (c <= 40) {
+            float fac = (c - 20) / 20.0;
+            return color(255, 255 - fac * 115, 50, 255); // Yellow with a richer tone
+        } else if (c <= 100) {
+            float fac = (c - 40) / 60.0;
+            return color(255, 140 - fac * 140, 0, 255); // Pink transition
+        } else if (c <= 200) {
+            float fac = (c - 100) / 100.0;
+            return color(255, 0, fac * 255, 255); // Purple transition
+        } else if (c <= 500) {
+            float fac = (c - 200) / 300.0;
+            return color(255 - fac * 141, 20, 255, 255); // Deeper purple to cyan
+        } else if (c <= 1000) {
+            float fac = (c - 500) / 500.0;
+            return color(114 - fac * 114, fac * 255, 255, 255); // Cyan transition
+        } else if (c <= 4000) {
+            float fac = (c - 1000) / 3000.0;
+            return color(225 + fac * 30, 210 - fac * 20, 30 + fac * 50); // Gold with richer, deeper hues
+        } else {
+            float fac = min(1, (c - 4000) / 6000.0);
+            return color(255, 202 + fac * 53, fac * 255); // Transition to white
+        }
     }
 }
 
-// Helper function for creating color
-color createColor(float r, float g, float b) {
-    return color(r, g, b, 255); // Default alpha is 255
-}
-
-color transitionColor(color a, color b, float prog) {
-    return color(
-        lerp(red(a), red(b), prog),
-        lerp(green(a), green(b), prog),
-        lerp(blue(a), blue(b), prog)
-    );
-}
-
+  color transitionColor(color a, color b, float prog){
+    float newR = lerp(red(a), red(b), prog);
+    float newG = lerp(green(a), green(b), prog);
+    float newB = lerp(blue(a), blue(b), prog);
+    return color(newR, newG, newB);
+  }
   void drawSpider(Room room){
     color c = getColor();
     if(this == highlight_spider){
-        c = color(0,255,0);
+      c = color(0,255,0);
     }
-
-    // Cache the real coordinates to avoid repeated calls
     float[] realCoor = room.wallCoor_to_realCoor(coor);
     g.pushMatrix();
     aTranslate(realCoor);
@@ -145,8 +115,8 @@ color transitionColor(color a, color b, float prog) {
     g.rotateZ(realCoor[3]);
     g.beginShape();
     for(int i = 0; i < 12; i++){
-        float angle = i*2*PI/12;
-        g.vertex(cos(angle)*BODY_SPAN, 2, sin(angle)*BODY_SPAN);
+      float angle = i*2*PI/12;
+      g.vertex(cos(angle)*BODY_SPAN,2,sin(angle)*BODY_SPAN);
     }
     g.endShape(CLOSE);
     g.popMatrix();
@@ -154,45 +124,44 @@ color transitionColor(color a, color b, float prog) {
     g.stroke(c);
     g.strokeWeight(3);
     for(int L = 0; L < LEG_COUNT; L++){
-        // Cache the real coordinates of each leg
-        float[] legRealCoor = room.wallCoor_to_realCoor(leg_coor[L]);
-        float[] Lcoor = aSubstract(legRealCoor, realCoor);
-        float[] Mcoor = multi(Lcoor, 0.5);
-        Mcoor[0] -= sin(realCoor[3]) * Ldist;
-        Mcoor[1] += cos(realCoor[3]) * Ldist;
-        g.line(0, 0, 0, Mcoor[0], Mcoor[1], Mcoor[2]);
-        g.line(Mcoor[0], Mcoor[1], Mcoor[2], Lcoor[0], Lcoor[1], Lcoor[2]);
+      float[] legRealCoor = room.wallCoor_to_realCoor(leg_coor[L]);
+      float[] Lcoor = aSubstract(legRealCoor,realCoor);
+      float[] Mcoor = multi(Lcoor,0.5);
+      Mcoor[0] -= sin(realCoor[3])*Ldist;
+      Mcoor[1] += cos(realCoor[3])*Ldist;
+      g.line(0,0,0,Mcoor[0],Mcoor[1],Mcoor[2]);
+      g.line(Mcoor[0],Mcoor[1],Mcoor[2],Lcoor[0],Lcoor[1],Lcoor[2]);
     }
     g.noStroke();
     g.popMatrix();
     
-    // Parent drawing logic (only if needed)
-    if (getAge() < 200 && parent != null && parent.getAge() >= getAge()){
-        float[] parentCoor = room.wallCoor_to_realCoor(parent.coor);
-        if (realCoor[0] == parentCoor[0] && realCoor[1] == parentCoor[1]) return;
-        
-        g.pushMatrix();
-        aTranslate(realCoor);
-        g.rotateZ(realCoor[3]);
-        g.beginShape();
-        g.fill(255);
-        float WHITE_SPAN = BODY_SPAN * 4;
-        for (int i = 0; i < 12; i++) {
-            float angle = i * 2 * PI / 12;
-            g.vertex(cos(angle) * WHITE_SPAN, EPS * 2, sin(angle) * WHITE_SPAN);
-        }
-        g.endShape(CLOSE);
-        g.popMatrix();
-        
-        if (dist(realCoor[0], realCoor[1], realCoor[2], parentCoor[0], parentCoor[1], parentCoor[2]) < WHITE_SPAN * 10){
-            g.stroke(255);
-            g.strokeWeight(20);
-            g.line(realCoor[0], realCoor[1], realCoor[2], parentCoor[0], parentCoor[1], parentCoor[2]);
-            g.noStroke();
-        }
+    
+    if(getAge() < 200 && parent != null && parent.getAge() >= getAge()){
+      float[] parentCoor = room.wallCoor_to_realCoor(parent.coor);
+      if(realCoor[0] == parentCoor[0] && realCoor[1] == parentCoor[1]){
+        return;
+      }
+      g.pushMatrix();
+      aTranslate(realCoor);
+      g.rotateZ(realCoor[3]);
+      g.beginShape();
+      g.fill(255);
+      float WHITE_SPAN = BODY_SPAN*4;
+      for(int i = 0; i < 12; i++){
+        float angle = i*2*PI/12;
+        g.vertex(cos(angle)*WHITE_SPAN,EPS*2,sin(angle)*WHITE_SPAN);
+      }
+      g.endShape(CLOSE);
+      g.popMatrix();
+      
+      if(dist(realCoor[0],realCoor[1],realCoor[2],parentCoor[0],parentCoor[1],parentCoor[2]) < WHITE_SPAN*10){
+        g.stroke(255);
+        g.strokeWeight(20);
+        g.line(realCoor[0],realCoor[1],realCoor[2],parentCoor[0],parentCoor[1],parentCoor[2]);
+        g.noStroke();
+      }
     }
-}
-
+  }
   float[] multi(float[] a, float m){
     float[] result = new float[a.length];
     for(int i = 0; i < a.length; i++){
@@ -229,58 +198,40 @@ color transitionColor(color a, color b, float prog) {
   void placeLegs(float[] center, int step, Room room, float darkest_sensed_shadow, ArrayList<Spider> spiders){
     float force_to_right_angles = 0.001; // how strongly should the spider's legs be dragged back into right angles?
     float first_angle = 0;
-
-    // Precompute cos and sin values of angles once
-    float[] cosAngles = new float[LEG_COUNT];
-    float[] sinAngles = new float[LEG_COUNT];
-
-    for (int L = 0; L < LEG_COUNT; L++) {
-        int genome_index = L * GENES_PER_LEG + 2 * step + 1;
-        if (darkest_sensed_shadow < genome[L * GENES_PER_LEG + 12]) { // it's below the threshold, so do the dark pattern
-            genome_index += 6;
+    for(int L = 0; L < LEG_COUNT; L++){
+      int genome_index = L*GENES_PER_LEG+2*step+1;
+      if(darkest_sensed_shadow < genome[L*GENES_PER_LEG+12]){ // it's below the threshold, so do the dark pattern
+        genome_index += 6;
+      }
+      float distance = genome[genome_index]*MAX_LEG_SPAN;
+      float delta_x = leg_coor[L][0]-center[0];
+      float delta_y = leg_coor[L][1]-center[1];
+      float angle = atan2(delta_y,delta_x);
+      if(L == 0){
+        first_angle = angle;
+      }else{
+        float desired_angle = first_angle+PI/2*L;
+        float move = (desired_angle-angle);
+        while(move > PI){
+          move -= 2*PI;
         }
-        float distance = genome[genome_index] * MAX_LEG_SPAN;
-
-        float delta_x = leg_coor[L][0] - center[0];
-        float delta_y = leg_coor[L][1] - center[1];
-
-        // Compute angle only once
-        float angle = atan2(delta_y, delta_x);
-
-        if (L == 0) {
-            first_angle = angle;
-        } else {
-            float desired_angle = first_angle + PI / 2 * L;
-            float move = (desired_angle - angle);
-            while (move > PI) {
-                move -= 2 * PI;
-            }
-            while (move < -PI) {
-                move += 2 * PI;
-            }
-            angle += force_to_right_angles * move;
+        while(move < -PI){
+          move += 2*PI;
         }
-
-        // Store precomputed cos and sin values for reuse
-        cosAngles[L] = cos(angle);
-        sinAngles[L] = sin(angle);
-
-        // Update leg positions
-        leg_coor[L][0] = center[0] + cosAngles[L] * distance;
-        leg_coor[L][1] = center[1] + sinAngles[L] * distance;
+        angle += force_to_right_angles*move;
+      }
+      leg_coor[L][0] = center[0]+cos(angle)*distance;
+      leg_coor[L][1] = center[1]+sin(angle)*distance;
     }
-
-    coor = getWeightedCenter(step, room, darkest_sensed_shadow);
-
-    for (int d = 0; d < 2; d++) {
-        if (coor[d] < 0) {
-            shiftAllBy(d, room.getMaxDim(d));
-        } else if (coor[d] >= room.getMaxDim(d)) {
-            shiftAllBy(d, -room.getMaxDim(d));
-        }
+    coor = getWeightedCenter(step,room,darkest_sensed_shadow);
+    for(int d = 0; d < 2; d++){
+      if(coor[d] < 0){
+        shiftAllBy(d,room.getMaxDim(d));
+      }else if(coor[d] >= room.getMaxDim(d)){
+        shiftAllBy(d,-room.getMaxDim(d));
+      }
     }
-}
-
+  }
   void shiftAllBy(int dim, float amt){
     coor[dim] += amt;
     for(int L = 0; L < LEG_COUNT; L++){
@@ -424,7 +375,7 @@ color transitionColor(color a, color b, float prog) {
     visIndex = totalIndex;
     totalIndex++;
     birth_tick = ticks;
-    swattersSeen = new HashSet<Integer>();  // Creates an empty HashSet
+    swattersSeen = new ArrayList<Integer>(0); 
   }
   float getSensitivity(){
     float sensitivity = 0;

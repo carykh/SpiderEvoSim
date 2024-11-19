@@ -1,18 +1,6 @@
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Callable;
-import java.util.concurrent.Future;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.Arrays;
-import java.util.concurrent.*;
-import java.util.stream.IntStream;
-import java.util.ArrayList;
-import java.util.List;
 import com.jogamp.newt.opengl.GLWindow;
 import processing.sound.*;
 
-int threadsUsed = 4;  // Number of threads to be used, can be changed as per the requirement
 int CENTER_X = 960; // try setting this to 960 or 961 if there is horizontal camera-pan-drifting
 String[] soundFileNames = {"slap0.wav","slap1.wav","slap2.wav","splat0.wav","splat1.wav","splat2.wav","boop1.wav","boop2.wav","jump.wav","news.wav"};
 SoundFile[] sfx;
@@ -44,6 +32,7 @@ boolean TRAP_MOUSE = true;
 boolean lock_highlight = false;
 
 GLWindow r;
+
 int LEG_COUNT = 4;
 int GENES_PER_LEG = STEPS_CYCLE*4+1; //13
 int GENOME_LENGTH = LEG_COUNT*GENES_PER_LEG;
@@ -114,75 +103,22 @@ double safeAdd(double a, double b) {
     }
     return result;
 }
-
-ArrayList<Spider> createSpiders(Room room) {
-    int START_SPIDER_COUNT = 300;  // Number of spiders to create
-    ArrayList<Spider> result = new ArrayList<>();
-    
-    int batchSize = 50;  // Define the size of each batch
-    int numberOfBatches = (int) Math.ceil((double) START_SPIDER_COUNT / batchSize);
-    
-    ExecutorService executor = Executors.newFixedThreadPool(threadsUsed);  // Use threadsUsed variable
-    List<Callable<Void>> tasks = new ArrayList<>();
-    
-    for (int batch = 0; batch < numberOfBatches; batch++) {
-        final int start = batch * batchSize;
-        final int end = Math.min(start + batchSize, START_SPIDER_COUNT);
-        
-        tasks.add(() -> {
-            for (int s = start; s < end; s++) {
-                Spider spider = new Spider(s, room);
-                synchronized (result) {  // Ensure thread safety when adding to the result list
-                    result.add(spider);
-                }
-            }
-            return null;
-        });
-    }
-    
-    try {
-        executor.invokeAll(tasks);
-    } catch (InterruptedException e) {
-        e.printStackTrace();
-    } finally {
-        executor.shutdown();
-    }
-
-    return result;
+ArrayList<Spider> createSpiders(Room room){
+  int START_SPIDER_COUNT = 300;
+  ArrayList<Spider> result = new ArrayList<Spider>(0);
+  for(int s = 0; s < START_SPIDER_COUNT; s++){
+    Spider newSpider = new Spider(s, room);
+    result.add(newSpider);
+  }
+  return result;
 }
-
-void createSwatters(Room room, int START_SPIDER_COUNT) {
-    swatters = new ArrayList<>();
-    
-    int batchSize = 50;  // Define the size of each batch
-    int numberOfBatches = (int) Math.ceil((double) START_SPIDER_COUNT / batchSize);
-    
-    ExecutorService executor = Executors.newFixedThreadPool(threadsUsed);  // Use threadsUsed variable
-    List<Callable<Void>> tasks = new ArrayList<>();
-    
-    for (int batch = 0; batch < numberOfBatches; batch++) {
-        final int start = batch * batchSize;
-        final int end = Math.min(start + batchSize, START_SPIDER_COUNT);
-        
-        tasks.add(() -> {
-            for (int s = start; s < end; s++) {
-                float perc = (s + 0.5f) / START_SPIDER_COUNT * 1.4f - 0.4f;
-                Swatter swatter = new Swatter(s, perc, room, swatters);
-                synchronized (swatters) {  // Ensure thread safety when adding to the swatters list
-                    swatters.add(swatter);
-                }
-            }
-            return null;
-        });
-    }
-    
-    try {
-        executor.invokeAll(tasks);
-    } catch (InterruptedException e) {
-        e.printStackTrace();
-    } finally {
-        executor.shutdown();
-    }
+void createSwatters(Room room, int START_SPIDER_COUNT){
+  swatters = new ArrayList<Swatter>(0);
+  for(int s = 0; s < START_SPIDER_COUNT; s++){
+    float perc = (s+0.5)/START_SPIDER_COUNT*1.4-0.4;
+    Swatter newSwatter = new Swatter(s, perc, room, swatters);
+    swatters.add(newSwatter);
+  }
 }
 
 void setup(){
@@ -251,7 +187,8 @@ void draw() {
     drawVisuals();
     image(g, 0, 0);
     drawUI();
-    frames++;    
+    frames++;
+    
     if (camera[1] < -1) {
         camera[1] = -1;
     }
@@ -259,6 +196,7 @@ void draw() {
         camera[1] = 1;
     }
 }
+
 void checkHighlight(){
   if(!lock_highlight){
     highlight_spider = checkHighlightHelper();
@@ -314,6 +252,7 @@ String dateNumToMonthString(int d) {
         return monthNames[0] + " 1";
     }
     
+    int totalDays = 0;
     for (int m = 0; m < 12; m++) {
         if (d < monthDays[m]) {
             return monthNames[m] + " " + (d + 1);
@@ -381,86 +320,68 @@ void doPhysics(){
   player.doPhysics(room);
 }
 
-float getBiodiversity() {
-    int spiderCount = spiders.size();
-    if (spiderCount == 0) return 0;
-
-    // Create arrays for genome mean and variance calculation
-    float[] meanGenome = new float[GENOME_LENGTH];
-    Arrays.fill(meanGenome, 0);
-
-    // Calculate mean values using a parallel stream
-    spiders.parallelStream().forEach(s -> {
-        for (int g = 0; g < GENOME_LENGTH; g++) {
-            meanGenome[g] += s.genome[g];
-        }
-    });
-
-    // Average the mean values
-    for (int g = 0; g < GENOME_LENGTH; g++) {
-        meanGenome[g] /= spiderCount;
+float getBiodiversity(){
+  float[] meanGenome = new float[GENOME_LENGTH];
+  for(int g = 0; g < GENOME_LENGTH; g++){
+    meanGenome[g] = 0;
+  }
+  for(int s = 0; s < spiders.size(); s++){
+    for(int g = 0; g < GENOME_LENGTH; g++){
+      meanGenome[g] += spiders.get(s).genome[g];
     }
-
-    // Calculate variance in parallel
-    float[] variances = new float[GENOME_LENGTH];
-    Arrays.fill(variances, 0);
-
-    spiders.parallelStream().forEach(s -> {
-        for (int g = 0; g < GENOME_LENGTH; g++) {
-            variances[g] += Math.pow(s.genome[g] - meanGenome[g], 2);
-        }
-    });
-
-    // Calculate the total diversity
-    float total_diversity = 0;
-    for (int g = 0; g < GENOME_LENGTH; g++) {
-        total_diversity += Math.sqrt(variances[g] / spiderCount);
+  }
+  for(int g = 0; g < GENOME_LENGTH; g++){
+    meanGenome[g] /= spiders.size();
+  }
+  float[] variances = new float[GENOME_LENGTH];
+  for(int g = 0; g < GENOME_LENGTH; g++){
+    variances[g] = 0;
+  }
+  for(int s = 0; s < spiders.size(); s++){
+    for(int g = 0; g < GENOME_LENGTH; g++){
+      variances[g] += pow(spiders.get(s).genome[g]-meanGenome[g],2);
     }
-
-    return total_diversity / GENOME_LENGTH * 100;
+  }
+  float total_diversity = 0;
+  for(int g = 0; g < GENOME_LENGTH; g++){
+    total_diversity += sqrt(variances[g]/spiders.size());
+  }
+  return total_diversity/GENOME_LENGTH*100;
 }
-
 void collectData() {
     if (ticks % CHANGE_WINDOWS_EVERY == 0) {
         for (int w = 0; w < windows.size(); w++) {
             windows.get(w).updateShow();
         }
     }
-
     if (ticks % (long)TICKS_PER_DAY == 0) {
-        // Cache the spider count to avoid repeated calls to spiders.size()
-        int spiderCount = spiders.size();
-
-        // Initialize the datum array before the conditional block
+        // Keep using Float[] to match Spider.writeData() method
         Float[] datum = new Float[STAT_COUNT];
-        Arrays.fill(datum, 0.0f);
-
-        if (spiderCount > 0) {
-            // Accumulate data into the datum array
-            for (int s = 0; s < spiderCount; s++) {
-                spiders.get(s).writeData(datum);
-            }
-
-            // Average the data after accumulation
-            for (int d = 0; d < STAT_COUNT; d++) {
-                datum[d] /= spiderCount;
-            }
+        for (int d = 0; d < STAT_COUNT; d++) {
+            datum[d] = 0.0f;  // Use 0.0f for Float
         }
-
-        // Additional data (no need for division)
-        datum[1] = (float) dailyDeaths;
-        datum[2] = (float) (swattersSeenTotal - dailyDeaths);
+        
+        // Get spider count before division
+        float spiderCount = spiders.size();
+        
+        for (int s = 0; s < spiders.size(); s++) {
+            spiders.get(s).writeData(datum);
+        }
+        
+        // Prevent division by zero and ensure precise division
+        for (int d = 0; d < STAT_COUNT; d++) {
+            datum[d] = spiderCount > 0 ? datum[d] / spiderCount : 0.0f;
+        }
+        
+        datum[1] = (float)dailyDeaths;
+        datum[2] = (float)(swattersSeenTotal - dailyDeaths);
         datum[4] = getBiodiversity();
-
-        // Reset daily statistics
+        
         dailyDeaths = 0;
         swattersSeenTotal = 0;
-
-        // Store the results and notes
         stats.add(datum);
         statNotes.add("");
-
-        // Prepare for graph rendering
+        
         float[] graph_dim = {100, 120, 575, 400};
         String[] titles = {
             "Average Age (days)", 
@@ -470,27 +391,19 @@ void collectData() {
             "Total Biodiversity (out of 100)", 
             "Average Swatters Seen"
         };
-
-        // Prepare graph data once and reuse it for all graphs
+        
         for (int d = 0; d < STAT_COUNT; d++) {
             float[] graphData = new float[stats.size()];
-
-            // Extract graph data from stats in one pass
             for (int i = 0; i < stats.size(); i++) {
                 graphData[i] = stats.get(i)[d];
             }
-
-            // Render graph for each statistic
             drawGraphOn(statImages[d], graphData, titles[d], graph_dim, color(128,0,0), d);
         }
-
-        // Play sound with adjusted amplitude based on playback speed
+        
         sfx[9].play();
-        sfx[9].amp(1.0 - min(0.8, (playback_speed - 1) / 200.0));
+        sfx[9].amp(1.0 - min(0.8, (playback_speed-1)/200.0));
     }
 }
-
-
 float getUnit(float a, float b){
   float diff = b-a;
   float[] units = {0.0001,0.0002,0.0005,0.001,0.002,0.005,0.01,0.02,0.05,0.1,0.2,0.5,1,2,5,10,20,50,100,200,500,1000,2000,5000,10000,20000,50000,100000,200000,500000,1000000};
