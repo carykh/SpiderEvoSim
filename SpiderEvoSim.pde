@@ -121,52 +121,89 @@ void createSwatters(Room room, int START_SPIDER_COUNT){
   }
 }
 
-void setup(){
-  windowImages = new PImage[WINDOW_COUNT];
-  for(int w = 0; w < WINDOW_COUNT; w++){
-    windowImages[w] = loadImage("windows/w"+nf(w+1,4,0)+".png");
-  }
-  sfx = new SoundFile[soundFileNames.length];
-  for(int s = 0; s < soundFileNames.length; s++){
-    sfx[s] = new SoundFile(this, "audio/"+soundFileNames[s]);
-  }
+// Global variable to track loading status
+boolean resourcesLoaded = false;
+
+// Must be declared at the top level for Processing's size() to work
+void settings() {
+  size(1920,1080,P3D);
+}
   
+  void setup() {
+  // Initialize core components first
   float[][] walls = {{0,0},{975,0},{975,670},{1100,670},{1100,0},{2100,0},{2100,1000},{1100,1000},{1100,780},{975,780},{975,1000},{0,1000}};
   float[] zs = {0,500};
   float[] player_coor = {700,700,0,0};
   room = new Room(walls,zs);
   player = new Player(player_coor);
-  spiders = createSpiders(room);
-  createSwatters(room, 0);
   keyHandler = new KeyHandler();
-  size(1920,1080,P3D);
   
-  buttons.add(new Button(0,1300,300,"Increase"));
-  buttons.add(new Button(1,1450,300,"Decrease"));
-  
-  buttons.add(new Button(2,1800,300,"Enlarge,Swatters"));
-  buttons.add(new Button(3,1950,300,"Shrink,Swatters"));
-  
-  buttons.add(new Button(4,1800,700,"Speed up,Swatters"));
-  buttons.add(new Button(5,1950,700,"Slow down,Swatters"));
-  
-  buttons.add(new Button(6,1450,700,"Invent,Swatters"));
-  
-  for(int d = 0; d < STAT_COUNT; d++){
-    statImages[d] = createGraphics(800,600);
-  }
-  
+  // Setup window
   r = (GLWindow)surface.getNative();
   r.confinePointer(true);
   r.setPointerVisible(false);
   g = createGraphics(1920,1080,P3D);
+  
+  // Start resource loading thread
+  thread("loadResources");
 }
+
+void loadResources() {
+  // Load windows in batches of 5
+  windowImages = new PImage[WINDOW_COUNT];
+  for(int w = 0; w < WINDOW_COUNT; w += 5) {
+    int endIndex = min(w + 5, WINDOW_COUNT);
+    for(int i = w; i < endIndex; i++) {
+      windowImages[i] = loadImage("windows/w"+nf(i+1,4,0)+".png");
+    }
+  }
+  
+  // Load sound files in batches
+  sfx = new SoundFile[soundFileNames.length];
+  for(int s = 0; s < soundFileNames.length; s += 3) {
+    int endIndex = min(s + 3, soundFileNames.length);
+    for(int i = s; i < endIndex; i++) {
+      sfx[i] = new SoundFile(this, "audio/"+soundFileNames[i]);
+    }
+  }
+  
+  // Initialize game objects
+  spiders = createSpiders(room);
+  createSwatters(room, 0);
+  
+  // Initialize buttons
+  buttons.add(new Button(0,1300,300,"Increase"));
+  buttons.add(new Button(1,1450,300,"Decrease"));
+  buttons.add(new Button(2,1800,300,"Enlarge,Swatters"));
+  buttons.add(new Button(3,1950,300,"Shrink,Swatters"));
+  buttons.add(new Button(4,1800,700,"Speed up,Swatters"));
+  buttons.add(new Button(5,1950,700,"Slow down,Swatters"));
+  buttons.add(new Button(6,1450,700,"Invent,Swatters"));
+  
+  // Initialize stat images
+  for(int d = 0; d < STAT_COUNT; d++){
+    statImages[d] = createGraphics(800,600);
+  }
+  
+  // Mark loading as complete
+  resourcesLoaded = true;
+}
+
 //FPS counter
 ArrayList<Long> frameTimestamps = new ArrayList<>(); // To store frame timestamps
 float averageFps = 0; // Average FPS over the last 4 seconds
 
 void draw() {
-    // Capture current time in milliseconds
+  if (!resourcesLoaded) {
+    // Show loading screen
+    background(0);
+    fill(255);
+    textAlign(CENTER, CENTER);
+    textSize(32);
+    text("Loading...", width/2, height/2);
+    return;
+  }  
+  // Capture current time in milliseconds
     long currentTime = millis();
     frameTimestamps.add(currentTime);
     
