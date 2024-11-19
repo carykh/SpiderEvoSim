@@ -611,15 +611,9 @@ void drawVisuals(){
   player.drawPlayer();
   drawWindows();
   checkHighlight();
-  drawSpiders(room);
-  drawSwatters(room);
-  drawButtons();
-  g.popMatrix();
-  g.endDraw();
-//Most demanding by far!
-    checkHighlight();
-    long afterCheckHighlight = System.nanoTime();
-
+  
+    long startTime = System.nanoTime();
+    //Most demanding by far!
     drawSpiders(room);
     long afterDrawSpiders = System.nanoTime();
 
