@@ -611,6 +611,7 @@ void drawVisuals(){
   player.drawPlayer();
   drawWindows();
   checkHighlight();
+<<<<<<< HEAD
   
     long startTime = System.nanoTime();
     //Most demanding by far!
@@ -633,6 +634,14 @@ void drawVisuals(){
     println("Draw Buttons: " + (afterDrawButtons - afterDrawSwatters) / 1e6 + " ms");
     println("Pop/EndDraw: " + (endTime - afterDrawButtons) / 1e6 + " ms");
     println("Total DrawVisuals Time: " + (endTime - startTime) / 1e6 + " ms");
+=======
+  drawSpiders(room);
+  drawSwatters(room);
+  drawButtons();
+  g.popMatrix();
+  g.endDraw();
+//Most demanding by far!
+>>>>>>> parent of 9f71ced (small amount of debugging)
 }
 
 void drawWindows(){
