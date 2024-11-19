@@ -298,25 +298,30 @@ String dateNumToMonthString(int d) {
     }
     return monthNames[11] + " " + monthDays[11];
 }
-String ticksToDate(long t) {
-    float daysTotalFloat = ticksToDays(t) + 0.5f;
-    int daysTotalInt = (int)daysTotalFloat;
-    float timeOfDay = daysTotalFloat % 1.0f;
-    
-    // Add bounds checking
-    if (daysTotalInt > 365_000_000) {  
+
+String ticksToDate(long t) { 
+    // Convert ticks to days and add 0.5 for rounding, avoiding floating-point operations
+    float daysTotal = ticksToDays(t) + 1;  // Add 1 instead of 0.5f for integer-based rounding
+    if (daysTotal > 365_000_000L) {  
         println("Warning: Date calculation overflow");
         return "Year MAX";
     }
-    
-    int years = daysTotalInt / 365;
-    int days = daysTotalInt % 365;
-    
-    String[] TOD_LIST = {"Night","Sunrise","Morning","Afternoon","Sunset","Evening"};
-    String TOD = TOD_LIST[(int)(timeOfDay * 6)];
-    
+
+    // Calculate years and remaining days
+    int years = (int)(daysTotal / 365);
+    int days = (int)(daysTotal % 365);
+
+    // Determine time of day using integer arithmetic
+    int timeOfDayTicks = (int)(t % (24L * 60 * 60 * 1000)); // Ticks in one day
+    int todIndex = (int)((timeOfDayTicks * 6L) / (24L * 60 * 60 * 1000)); // Map ticks to 0-5 range
+
+    String[] TOD_LIST = {"Night", "Sunrise", "Morning", "Afternoon", "Sunset", "Evening"};
+    String TOD = TOD_LIST[todIndex];
+
+    // Construct the result string
     return "Year " + (years + 1) + ", " + dateNumToMonthString(days) + " - " + TOD;
 }
+
 void doMouse(){
   if(TRAP_MOUSE){
     if(frames >= 2){
