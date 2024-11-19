@@ -617,6 +617,28 @@ void drawVisuals(){
   g.popMatrix();
   g.endDraw();
 //Most demanding by far!
+    checkHighlight();
+    long afterCheckHighlight = System.nanoTime();
+
+    drawSpiders(room);
+    long afterDrawSpiders = System.nanoTime();
+
+    drawSwatters(room);
+    long afterDrawSwatters = System.nanoTime();
+
+    drawButtons();
+    long afterDrawButtons = System.nanoTime();
+
+    g.popMatrix();
+    g.endDraw();
+    long endTime = System.nanoTime();
+
+    // Print profiling results
+    println("Draw Spiders: " + (afterDrawSpiders - afterCheckHighlight) / 1e6 + " ms");
+    println("Draw Swatters: " + (afterDrawSwatters - afterDrawSpiders) / 1e6 + " ms");
+    println("Draw Buttons: " + (afterDrawButtons - afterDrawSwatters) / 1e6 + " ms");
+    println("Pop/EndDraw: " + (endTime - afterDrawButtons) / 1e6 + " ms");
+    println("Total DrawVisuals Time: " + (endTime - startTime) / 1e6 + " ms");
 }
 
 void drawWindows(){
