@@ -467,98 +467,123 @@ float getUnit(float a, float b){
   }
   return 1;
 }
-void drawGraphOn(PGraphics s, float[] data, String title, float[] graph_dim, color col, int d){
-  s.beginDraw();
-  s.background(255);
-  float max = -9999999;
-  float min = 9999999;
-  for(int i = 0; i < data.length; i++){
-    if(data[i] > max){
-      max = data[i];
+void drawGraphOn(PGraphics s, float[] data, String title, float[] graph_dim, color col, int d) {
+    // Pre-calculate frequently used values
+    final float graphWidth = graph_dim[2];
+    final float graphHeight = graph_dim[3];
+    final float graphX = graph_dim[0];
+    final float graphY = graph_dim[1];
+    final int dataLength = data.length;
+    
+    // Find min/max in single pass
+    float min = Float.MAX_VALUE;
+    float max = -Float.MAX_VALUE;
+    for (float value : data) {
+        if (value > max) max = value;
+        if (value < min) min = value;
     }
-    if(data[i] < min){
-      min = data[i];
+    if (max == min) max += 0.1;
+    
+    final float range = max - min;
+    final float xScale = graphWidth / (dataLength - 1);
+    final float yScale = graphHeight / range;
+    
+    s.beginDraw();
+    s.background(255);
+    
+    // Batch similar operations together
+    s.strokeWeight(4);
+    s.stroke(140);
+    s.fill(140);
+    s.textAlign(CENTER);
+    
+    // Cache transformed coordinates
+    float[] xCoords = new float[dataLength];
+    float[] yCoords = new float[dataLength];
+    for (int i = 0; i < dataLength; i++) {
+        xCoords[i] = (i * xScale) + graphX;
+        yCoords[i] = graphY + graphHeight * (1 - (data[i] - min) / range);
     }
-  }
-  if(max == min){
-    max += 0.1;
-  }
-  float E_R = 15;
-  s.strokeWeight(4);
-  s.stroke(140);
-  s.fill(140);
-  s.textAlign(CENTER);
-  float TS = 23;
-  s.textSize(TS);
-  for(int i = 0; i < data.length; i++){
-    String str = statNotes.get(i);
-    if(str.length() >= 1){
-      String[] parts = str.split("-");
-      float x = ((float)i)/data.length*graph_dim[2]+graph_dim[0];
-      float y = graph_dim[1];
-      float h = graph_dim[3];
-      float y2 = y+h-parts.length*TS+3*TS;
-      for(int j = 0; j < parts.length; j++){
-        s.text(parts[j],x,y2+j*TS+TS);
-      }
-      s.line(x,y,x,y2);
-    }
-  }
-  float unit = getUnit(min, max);
-  float first_unit = floor(min/unit)*unit;
-  s.textAlign(RIGHT);
-  float TS2 = 36;
-  s.textSize(TS2);
-  s.strokeWeight(2);
-  s.stroke(170);
-  boolean INTEGER_MEASURE = (d == 1 || d == 2);
-  for(float u = first_unit; u < max; u += unit){
-    float x = graph_dim[0];
-    float y = (1-(u-min)/(max-min))*graph_dim[3]+graph_dim[1];
-    s.line(x,y,x+graph_dim[2],y);
-    String str = nf(u,0,2);
-    if(u%1.0 >= 0.999 || u%10 <= 0.001 || INTEGER_MEASURE){
-      str = ""+(int)u;
-    }
-    s.text(str,x-10,y+TS*0.35);
-  }
-  s.strokeWeight(4);
-  for(int i = 0; i < data.length; i++){
-    float x = ((float)i)/data.length*graph_dim[2]+graph_dim[0];
-    float y = (1-(data[i]-min)/(max-min))*graph_dim[3]+graph_dim[1];
-    s.fill(col);
-    if(data.length < 50){
-      s.noStroke();
-      s.ellipse(x,y,E_R,E_R);
-    }
-    if(i == data.length-1){
-      float TS3 = (data[i] > 10 && !INTEGER_MEASURE) ? 39 : 50;
-      s.textSize(TS3);
-      s.textAlign(LEFT);
-      String str =  INTEGER_MEASURE ? (int)data[i]+"" : nf(data[i],0,2);
-      s.text(str,x+TS3*0.5,y+TS3*0.35);
-      if(i >= 1){
-        float delta = data[i]-data[i-1];
-        String delta_str =  INTEGER_MEASURE ? (int)delta+"" : nf(delta,0,2);
-        if(data[i] >= data[i-1]){
-          delta_str = "+"+delta_str;
+    
+    // Draw annotations in batch
+    s.textSize(23);
+    for (int i = 0; i < dataLength; i++) {
+        String str = statNotes.get(i);
+        if (str.length() >= 1) {
+            String[] parts = str.split("-");
+            float y2 = graphY + graphHeight - parts.length * 23 + 69; // 3 * 23
+            
+            // Draw line first
+            s.line(xCoords[i], graphY, xCoords[i], y2);
+            
+            // Then all text
+            for (int j = 0; j < parts.length; j++) {
+                s.text(parts[j], xCoords[i], y2 + j * 23 + 23);
+            }
         }
-        s.textSize(TS3*0.6);
-        s.text(delta_str,x+TS3*0.5,y+TS3*1.1);
-      }
-    }else{
-      float x2 = ((float)(i+1))/data.length*graph_dim[2]+graph_dim[0];
-      float y2 = (1-(data[i+1]-min)/(max-min))*graph_dim[3]+graph_dim[1];
-      s.stroke(col);
-      s.line(x,y,x2,y2);
     }
-  }
-  s.textAlign(CENTER);
-  s.fill(0);
-  s.textSize(60);
-  s.text(title,graph_dim[0]+graph_dim[2]*0.5,graph_dim[1]-50);
-  s.endDraw();
+    
+    // Draw grid lines and values
+    float unit = getUnit(min, max);
+    float firstUnit = floor(min/unit) * unit;
+    boolean integerMeasure = (d == 1 || d == 2);
+    
+    s.textAlign(RIGHT);
+    s.textSize(36);
+    s.strokeWeight(2);
+    s.stroke(170);
+    
+    for (float u = firstUnit; u < max; u += unit) {
+        float y = graphY + graphHeight * (1 - (u - min) / range);
+        s.line(graphX, y, graphX + graphWidth, y);
+        
+        String str = integerMeasure ? String.valueOf((int)u) : 
+                    (u % 1.0 >= 0.999 || u % 10 <= 0.001) ? String.valueOf((int)u) : nf(u, 0, 2);
+        s.text(str, graphX - 10, y + 8); // 23 * 0.35 ≈ 8
+    }
+    
+    // Draw data points and lines
+    s.strokeWeight(4);
+    s.fill(col);
+    s.stroke(col);
+    
+    boolean showPoints = dataLength < 50;
+    for (int i = 0; i < dataLength - 1; i++) {
+        if (showPoints) {
+            s.noStroke();
+            s.ellipse(xCoords[i], yCoords[i], 15, 15);
+            s.stroke(col);
+        }
+        s.line(xCoords[i], yCoords[i], xCoords[i + 1], yCoords[i + 1]);
+    }
+    
+    // Draw final point and values
+    if (dataLength > 0) {
+        int last = dataLength - 1;
+        float textSize = (data[last] > 10 && !integerMeasure) ? 39 : 50;
+        s.textSize(textSize);
+        s.textAlign(LEFT);
+        
+        String finalValue = integerMeasure ? String.valueOf((int)data[last]) : nf(data[last], 0, 2);
+        s.text(finalValue, xCoords[last] + textSize * 0.5, yCoords[last] + textSize * 0.35);
+        
+        if (last > 0) {
+            float delta = data[last] - data[last - 1];
+            String deltaStr = (delta >= 0 ? "+" : "") + (integerMeasure ? String.valueOf((int)delta) : nf(delta, 0, 2));
+            s.textSize(textSize * 0.6);
+            s.text(deltaStr, xCoords[last] + textSize * 0.5, yCoords[last] + textSize * 1.1);
+        }
+    }
+    
+    // Draw title
+    s.textAlign(CENTER);
+    s.fill(0);
+    s.textSize(60);
+    s.text(title, graphX + graphWidth * 0.5, graphY - 50);
+    
+    s.endDraw();
 }
+
 float daylight() {
     float days = ticksToDays(ticks);
     if (Float.isInfinite(days) || Float.isNaN(days)) {
