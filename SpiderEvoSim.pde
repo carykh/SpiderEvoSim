@@ -289,7 +289,6 @@ String dateNumToMonthString(int d) {
         return monthNames[0] + " 1";
     }
     
-    int totalDays = 0;
     for (int m = 0; m < 12; m++) {
         if (d < monthDays[m]) {
             return monthNames[m] + " " + (d + 1);
