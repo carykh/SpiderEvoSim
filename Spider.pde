@@ -176,62 +176,53 @@ class Spider{
     }
     return result;
   }
-  float[] getWeightedCenter(int step, Room room, float darkest_sensed_shadow){
-    float[] sum_coor = {0,0};
-    float sum_weight = 0;
-    for(int L = 0; L < LEG_COUNT; L++){
-      int genome_index = L*GENES_PER_LEG+2*step;
-      if(darkest_sensed_shadow < genome[L*GENES_PER_LEG+12]){ // it's below the threshold, so do the dark pattern
-        genome_index += 6;
-      }
-      float weight = genome[genome_index];
-      sum_weight += weight;
-      for(int d = 0; d < 2; d++){
-        sum_coor[d] += leg_coor[L][d]*weight;
-      }
-    }
-    float rx = sum_coor[0]/sum_weight;
-    float ry = sum_coor[1]/sum_weight;
-    float[] result = {rx, ry};
-    return result;
-  }
-  void placeLegs(float[] center, int step, Room room, float darkest_sensed_shadow, ArrayList<Spider> spiders){
-    float force_to_right_angles = 0.001; // how strongly should the spider's legs be dragged back into right angles?
-    float first_angle = 0;
-    for(int L = 0; L < LEG_COUNT; L++){
-      int genome_index = L*GENES_PER_LEG+2*step+1;
-      if(darkest_sensed_shadow < genome[L*GENES_PER_LEG+12]){ // it's below the threshold, so do the dark pattern
-        genome_index += 6;
-      }
-      float distance = genome[genome_index]*MAX_LEG_SPAN;
-      float delta_x = leg_coor[L][0]-center[0];
-      float delta_y = leg_coor[L][1]-center[1];
-      float angle = atan2(delta_y,delta_x);
-      if(L == 0){
-        first_angle = angle;
-      }else{
-        float desired_angle = first_angle+PI/2*L;
-        float move = (desired_angle-angle);
-        while(move > PI){
-          move -= 2*PI;
+  float[] getWeightedCenter(int step, Room room, float darkest_sensed_shadow) {
+    float sumWeight = 0;
+    float sumX = 0, sumY = 0;
+    for (int L = 0; L < LEG_COUNT; L++) {
+        int genomeIndex = L * GENES_PER_LEG + 2 * step;
+        if (darkest_sensed_shadow < genome[L * GENES_PER_LEG + 12]) {
+            genomeIndex += 6;
         }
-        while(move < -PI){
-          move += 2*PI;
+        float weight = genome[genomeIndex];
+        sumWeight += weight;
+        sumX += leg_coor[L][0] * weight;
+        sumY += leg_coor[L][1] * weight;
+    }
+    return new float[]{sumX / sumWeight, sumY / sumWeight};
+}
+
+  void placeLegs(float[] center, int step, Room room, float darkest_sensed_shadow, ArrayList<Spider> spiders) {
+    float forceToRightAngles = 0.001f;
+    float firstAngle = 0;
+    for (int L = 0; L < LEG_COUNT; L++) {
+        int genomeIndex = L * GENES_PER_LEG + 2 * step + 1;
+        if (darkest_sensed_shadow < genome[L * GENES_PER_LEG + 12]) {
+            genomeIndex += 6;
         }
-        angle += force_to_right_angles*move;
-      }
-      leg_coor[L][0] = center[0]+cos(angle)*distance;
-      leg_coor[L][1] = center[1]+sin(angle)*distance;
+        float distance = genome[genomeIndex] * MAX_LEG_SPAN;
+        float deltaX = leg_coor[L][0] - center[0];
+        float deltaY = leg_coor[L][1] - center[1];
+        float angle = atan2(deltaY, deltaX);
+        if (L == 0) {
+            firstAngle = angle;
+        } else {
+            float desiredAngle = firstAngle + PI / 2 * L;
+            float move = desiredAngle - angle;
+            angle += forceToRightAngles * ((move + PI) % (2 * PI) - PI);
+        }
+        leg_coor[L][0] = center[0] + cos(angle) * distance;
+        leg_coor[L][1] = center[1] + sin(angle) * distance;
     }
-    coor = getWeightedCenter(step,room,darkest_sensed_shadow);
-    for(int d = 0; d < 2; d++){
-      if(coor[d] < 0){
-        shiftAllBy(d,room.getMaxDim(d));
-      }else if(coor[d] >= room.getMaxDim(d)){
-        shiftAllBy(d,-room.getMaxDim(d));
-      }
+    coor = getWeightedCenter(step, room, darkest_sensed_shadow);
+    for (int d = 0; d < 2; d++) {
+        if (coor[d] < 0) {
+            shiftAllBy(d, room.getMaxDim(d));
+        } else if (coor[d] >= room.getMaxDim(d)) {
+            shiftAllBy(d, -room.getMaxDim(d));
+        }
     }
-  }
+}
   void shiftAllBy(int dim, float amt){
     coor[dim] += amt;
     for(int L = 0; L < LEG_COUNT; L++){
