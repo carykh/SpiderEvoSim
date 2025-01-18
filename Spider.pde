@@ -277,31 +277,59 @@ color getColor() {
       move(room, cycle, swatters, spiders);
     }
   }
-  float getDarkestShadow(){
-    float darkest_sensed_shadow = 1.0;
-    for(int s = 0; s < swatters.size(); s++){
-      Swatter sw = swatters.get(s);
-      float x = sw.coor[0];
-      float y1 = sw.coor[1]-R;
-      float y2 = sw.coor[1]+R;
-      for(int L = 0; L < LEG_COUNT; L++){
-        if(abs(leg_coor[L][0]-sw.coor[0]) < R && abs(leg_coor[L][1]-sw.coor[1]) < R){ // it's under the shadow!
-          if(!swattersSeen.contains(sw.visIndex)){
-            swattersSeen.add(sw.visIndex);
-            swattersSeenTotal++;
-          }
-          darkest_sensed_shadow = min(darkest_sensed_shadow,max(sw.percentage,0));
+  float getDarkestShadow() {
+    float darkest_sensed_shadow = 1.0f;
+    float R2 = R * R; // Square of radius for faster distance checks
+    
+    for(Swatter sw : swatters) {
+        float swX = sw.coor[0];
+        float swY = sw.coor[1];
+        
+        // Quick AABB check before detailed collision
+        float minX = swX - R;
+        float maxX = swX + R;
+        float minY = swY - R;
+        float maxY = swY + R;
+        
+        boolean legFound = false;
+        for(int L = 0; L < LEG_COUNT && !legFound; L++) {
+            float legX = leg_coor[L][0];
+            float legY = leg_coor[L][1];
+            
+            if(legX >= minX && legX <= maxX && 
+               legY >= minY && legY <= maxY) {
+                
+                float dx = legX - swX;
+                float dy = legY - swY;
+                float distSquared = dx * dx + dy * dy;
+                
+                if(distSquared < R2) {
+                    if(!swattersSeen.contains(sw.visIndex)) {
+                        swattersSeen.add(sw.visIndex);
+                        swattersSeenTotal++;
+                    }
+                    darkest_sensed_shadow = Math.min(darkest_sensed_shadow, 
+                                                   Math.max(sw.percentage, 0));
+                    legFound = true; // Exit early if we found a collision
+                }
+            }
         }
-      }
     }
     return darkest_sensed_shadow;
-  }
-  void move(Room room, int cycle, ArrayList<Swatter> swatters, ArrayList<Spider> spiders){
+}
+  void move(Room room, int cycle, ArrayList<Swatter> swatters, ArrayList<Spider> spiders) {
+    // Cache frequently used values
     float darkest_sensed_shadow = getDarkestShadow();
     int step = cycle/SPIDER_ITER_BUCKETS;
+    
+    // Pre-calculate indices and thresholds once
+    boolean isDarkPattern = darkest_sensed_shadow < genome[12];
+    int baseIndex = isDarkPattern ? 6 : 0;
+    
+    // Get weighted center in one pass
     float[] weightedCenter = getWeightedCenter(step, room, darkest_sensed_shadow);
     placeLegs(weightedCenter, step, room, darkest_sensed_shadow, spiders);
-  }
+}
   int whereInCycle(int offset){
     return (ticks+offset-ITER_TIME+SIBSC)%SIBSC;
   }
