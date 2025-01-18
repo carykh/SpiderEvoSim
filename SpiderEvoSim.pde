@@ -166,35 +166,26 @@ void setup(){
 ArrayList<Long> frameTimestamps = new ArrayList<>(); // To store frame timestamps
 float averageFps = 0; // Average FPS over the last 4 seconds
 
-// Add to global variables
+// Global timing variables
 long physicsTiming = 0;
 long renderTiming = 0;
-long spiderPhysicsTiming = 0;
-long swatterPhysicsTiming = 0;
 String physicsStats = "";
 String renderStats = "";
-String spiderStats = "";
-String swatterStats = "";
 
 void draw() {
-    // Capture current time in milliseconds
+    // FPS calculation stays the same
     long currentTime = millis();
     frameTimestamps.add(currentTime);
-    
-    // Remove timestamps older than 4 seconds
     while (frameTimestamps.size() > 0 && frameTimestamps.get(0) < currentTime - 4000) {
         frameTimestamps.remove(0);
     }
-    
-    // Calculate average FPS
     if (frameTimestamps.size() > 1) {
         float elapsedSeconds = (frameTimestamps.get(frameTimestamps.size() - 1) - frameTimestamps.get(0)) / 1000.0f;
         averageFps = (frameTimestamps.size() - 1) / elapsedSeconds;
     }
-    long startFrame = System.nanoTime();
 
-    // Original draw logic
     doMouse();
+
     long startPhysics = System.nanoTime();
     doPhysics();
     physicsTiming = System.nanoTime() - startPhysics;
@@ -210,8 +201,6 @@ void draw() {
     if (frames % 30 == 0) {
         physicsStats = "Physics: " + (physicsTiming / 1_000_000) + "ms";
         renderStats = "Render: " + (renderTiming / 1_000_000) + "ms";
-        spiderStats = "Spider Physics: " + (spiderPhysicsTiming / 1_000_000) + "ms";
-        swatterStats = "Swatter Physics: " + (swatterPhysicsTiming / 1_000_000) + "ms";
     }
     
     // Display stats
@@ -220,8 +209,6 @@ void draw() {
     textSize(24);
     text(physicsStats, 10, 140);
     text(renderStats, 10, 170);
-    text(spiderStats, 10, 200);
-    text(swatterStats, 10, 230);
     
     frames++;    
     if (camera[1] < -1) {
@@ -353,15 +340,15 @@ void mousePressed() {
   g.popMatrix();
 }
 void doPhysics(){
-  iterateButtons(player);
-  for(int p = 0; p < playback_speed; p++){
-    iterateSpiders(room);
-    iterateSwatters(room);
-    collectData();
-    ticks++;
-  }
-  player.takeInputs(keyHandler);
-  player.doPhysics(room);
+    iterateButtons(player);
+    for(int p = 0; p < playback_speed; p++){
+        iterateSpiders(room);       
+        iterateSwatters(room);
+        collectData();       
+        ticks++;
+    }
+    player.takeInputs(keyHandler);
+    player.doPhysics(room);
 }
 
 float getBiodiversity(){
@@ -592,19 +579,15 @@ void aTranslate(float[] coor){
   g.translate(coor[0],coor[1],coor[2]);
 }
 void iterateSpiders(Room room) {
-    long start = System.nanoTime();
     for(int s = 0; s < spiders.size(); s++) {
         spiders.get(s).iterate(room, swatters, spiders);
     }
-    spiderPhysicsTiming = System.nanoTime() - start;
 }
 
 void iterateSwatters(Room room) {
-    long start = System.nanoTime();
-    for(int s = 0; s < swatters.size(); s++) {
+    for(int s = 0; s < swatters.size(); s++) { //<>//
         swatters.get(s).iterate(room, spiders, swatters);
     }
-    swatterPhysicsTiming = System.nanoTime() - start;
 }
 void iterateButtons(Player player){
   for(int b = 0; b < buttons.size(); b++){

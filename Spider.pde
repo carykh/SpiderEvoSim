@@ -14,6 +14,10 @@ class Spider{
   Spider parent;
   ArrayList<Integer> swattersSeen = new ArrayList<Integer>(0); 
   
+  // Add these as class fields
+  private final float HALF_PI = PI / 2;
+  private final float TWO_PI = PI * 2;
+  private final float MAX_LEG_SPAN_SQ = MAX_LEG_SPAN * MAX_LEG_SPAN;
   // Add these fields at the top of the Spider class
     private color cachedColor = -1;  // -1 means not calculated yet
     private int lastSwatterCount = -1;  // Track when we need to recalculate
@@ -31,7 +35,7 @@ class Spider{
     leg_coor = new float[LEG_COUNT][2];
     float ang = random(0,1);
     for(int L = 0; L < LEG_COUNT; L++){
-      float angL = (L+ang)*PI/2;
+      float angL = (L+ang)*HALF PI;
       int genome_index = L*GENES_PER_LEG+1;
       float distance = genome[genome_index];
       leg_coor[L][0] = coor[0]+cos(angL)*distance;
@@ -209,62 +213,75 @@ color getColor() {
     }
     return result;
   }
-  float[] getWeightedCenter(int step, Room room, float darkest_sensed_shadow){
-    float[] sum_coor = {0,0};
-    float sum_weight = 0;
-    for(int L = 0; L < LEG_COUNT; L++){
-      int genome_index = L*GENES_PER_LEG+2*step;
-      if(darkest_sensed_shadow < genome[L*GENES_PER_LEG+12]){ // it's below the threshold, so do the dark pattern
-        genome_index += 6;
-      }
-      float weight = genome[genome_index];
-      sum_weight += weight;
-      for(int d = 0; d < 2; d++){
-        sum_coor[d] += leg_coor[L][d]*weight;
-      }
+  float[] getWeightedCenter(int step, Room room, float darkest_sensed_shadow) {
+    float sumX = 0, sumY = 0;
+    float sumWeight = 0;
+    
+    boolean isDarkPattern = darkest_sensed_shadow < genome[12];
+    int baseIndex = isDarkPattern ? 6 : 0;
+    
+    for(int L = 0; L < LEG_COUNT; L++) {
+        int genomeIndex = L * GENES_PER_LEG + 2 * step + baseIndex;
+        float weight = genome[genomeIndex];
+        sumWeight += weight;
+        
+        float legX = leg_coor[L][0]; //<>//
+        float legY = leg_coor[L][1];
+        sumX += legX * weight;
+        sumY += legY * weight;
     }
-    float rx = sum_coor[0]/sum_weight;
-    float ry = sum_coor[1]/sum_weight;
-    float[] result = {rx, ry};
-    return result;
-  }
-  void placeLegs(float[] center, int step, Room room, float darkest_sensed_shadow, ArrayList<Spider> spiders){
-    float force_to_right_angles = 0.001; // how strongly should the spider's legs be dragged back into right angles?
+    
+    float invWeight = 1.0f / sumWeight;
+    return new float[] {sumX * invWeight, sumY * invWeight};
+}
+  void placeLegs(float[] center, int step, Room room, float darkest_sensed_shadow, ArrayList<Spider> spiders) {
+    final float force_to_right_angles = 0.001f;
+    final float TWO_PI = PI * 2;
+    final float HALF_PI = PI / 2;
+    
     float first_angle = 0;
-    for(int L = 0; L < LEG_COUNT; L++){
-      int genome_index = L*GENES_PER_LEG+2*step+1;
-      if(darkest_sensed_shadow < genome[L*GENES_PER_LEG+12]){ // it's below the threshold, so do the dark pattern
-        genome_index += 6;
-      }
-      float distance = genome[genome_index]*MAX_LEG_SPAN;
-      float delta_x = leg_coor[L][0]-center[0];
-      float delta_y = leg_coor[L][1]-center[1];
-      float angle = atan2(delta_y,delta_x);
-      if(L == 0){
-        first_angle = angle;
-      }else{
-        float desired_angle = first_angle+PI/2*L;
-        float move = (desired_angle-angle);
-        while(move > PI){
-          move -= 2*PI;
+    boolean isDarkPattern = darkest_sensed_shadow < genome[12];
+    int baseIndex = isDarkPattern ? 6 : 0;
+    
+    for(int L = 0; L < LEG_COUNT; L++) {
+        int genomeIndex = L * GENES_PER_LEG + 2 * step + baseIndex + 1;
+        float distance = genome[genomeIndex] * MAX_LEG_SPAN;
+        
+        float dx = leg_coor[L][0] - center[0];
+        float dy = leg_coor[L][1] - center[1];
+        float angle = atan2(dy, dx);
+        
+        if(L == 0) {
+            first_angle = angle;
+        } else {
+            float desired_angle = first_angle + L * HALF_PI;
+            float move = desired_angle - angle;
+            
+            // Normalize angle difference more efficiently
+            if(move > PI) move -= TWO_PI;
+            else if(move < -PI) move += TWO_PI;
+            
+            angle += force_to_right_angles * move;
         }
-        while(move < -PI){
-          move += 2*PI;
-        }
-        angle += force_to_right_angles*move;
-      }
-      leg_coor[L][0] = center[0]+cos(angle)*distance;
-      leg_coor[L][1] = center[1]+sin(angle)*distance;
+        
+        leg_coor[L][0] = center[0] + cos(angle) * distance;
+        leg_coor[L][1] = center[1] + sin(angle) * distance;
     }
-    coor = getWeightedCenter(step,room,darkest_sensed_shadow);
-    for(int d = 0; d < 2; d++){
-      if(coor[d] < 0){
-        shiftAllBy(d,room.getMaxDim(d));
-      }else if(coor[d] >= room.getMaxDim(d)){
-        shiftAllBy(d,-room.getMaxDim(d));
-      }
-    }
-  }
+    
+    coor = center;
+    checkBoundaries(room);
+}
+
+private void checkBoundaries(Room room) {
+    float maxX = room.getMaxDim(0);
+    float maxY = room.getMaxDim(1);
+    
+    if(coor[0] < 0) shiftAllBy(0, maxX);
+    else if(coor[0] >= maxX) shiftAllBy(0, -maxX);
+    
+    if(coor[1] < 0) shiftAllBy(1, maxY);
+    else if(coor[1] >= maxY) shiftAllBy(1, -maxY);
+}
   void shiftAllBy(int dim, float amt){
     coor[dim] += amt;
     for(int L = 0; L < LEG_COUNT; L++){
@@ -277,9 +294,17 @@ color getColor() {
       move(room, cycle, swatters, spiders);
     }
   }
-  float getDarkestShadow() {
+  private float lastDarkestShadow = 1.0f;
+  private int lastCheckTick = -1;
+
+float getDarkestShadow() {
+    if (lastCheckTick == ticks) {
+        return lastDarkestShadow;
+    }
+    
+    lastCheckTick = ticks;
     float darkest_sensed_shadow = 1.0f;
-    float R2 = R * R; // Square of radius for faster distance checks
+    float R2 = R * R;
     
     for(Swatter sw : swatters) {
         float swX = sw.coor[0];
