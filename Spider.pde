@@ -61,15 +61,50 @@ class Spider{
   }
   color getColor(){
     int c = swattersSeen.size();
-    if(c == 0 || c == 1){
+    if(c == 0){
       return color(0,0,0,255);
-    }else{
-      if(c < 6){
-        float fac = (c-1)/5.0;
+    } else {
+      if(c <= 5){
+        float fac = c/5.0;
         return color(0,fac*140,255-fac*255,255);
-      }else{
-        float fac = min(1,(c-6)/19.0);
-        return color(255*fac,140-fac*140,0,255);
+      } else {
+        if (c <= 20) {
+          float fac = (c-5)/15.0;
+          return color(fac*255, 140+fac*155, 0, 255);
+        } else {
+           if (c <= 40) {
+            float fac = (c-20)/20.0;
+            return color (255, 255-fac*115, 0, 255);
+          } else {
+            if ( c <= 100) {
+              float fac = (c-40)/60.0;
+              return color (255, 140-fac*140, 0, 255);
+            } else {
+              if (c <= 200) {
+                float fac = (c-100)/100.0;
+                return color (255, 0, fac*255, 255);
+              } else {
+                if (c <= 500) {
+                  float fac = (c-200)/100.0;
+                  return color (255-fac*141, 0, 255, 255);
+                } else {
+                  if (c <= 1000) {
+                    float fac = (c-500)/500.0;
+                    return color (114-fac*114, fac*255,255, 255);
+                  } else {
+                    if (c <= 10000) {
+                      float fac = (c-1000)/9000.0;
+                      return color (fac*255, 255-fac*53, 255-fac*255);
+                    } else {
+                      float fac = min(1, (c-10000)/40000);
+                      return color (255, 202+fac*53, fac*255);
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
   }
