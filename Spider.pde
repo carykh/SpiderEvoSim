@@ -14,6 +14,10 @@ class Spider{
   Spider parent;
   ArrayList<Integer> swattersSeen = new ArrayList<Integer>(0); 
   
+  // Add these fields at the top of the Spider class
+    private color cachedColor = -1;  // -1 means not calculated yet
+    private int lastSwatterCount = -1;  // Track when we need to recalculate
+    
   public Spider(int i, Room room){
     parent = null;
     genome = new float[GENOME_LENGTH];
@@ -59,40 +63,55 @@ class Spider{
     g.popMatrix();
     return value;
   }
+// Replace the existing getColor() method with this optimized version
 color getColor() {
-    int c = swattersSeen.size();
-    if (c == 0) {
-        return color(0, 0, 0, 255); // Black
+    int currentSwatterCount = swattersSeen.size();
+    
+    // Return cached color if nothing has changed
+    if (cachedColor != -1 && currentSwatterCount == lastSwatterCount) {
+        return cachedColor;
+    }
+    
+    // Calculate new color
+    color newColor;
+    if (currentSwatterCount == 0) {
+        newColor = color(0, 0, 0, 255); // Black
     } else {
-        if (c <= 5) {
-            float fac = c / 5.0;
-            return color(0, fac * 140, 255 - fac * 255, 255); // Blue transition
-        } else if (c <= 20) {
-            float fac = (c - 5) / 15.0;
-            return color(fac * 255, 140 + fac * 155, 20, 255); // Green with a higher base for better contrast
-        } else if (c <= 40) {
-            float fac = (c - 20) / 20.0;
-            return color(255, 255 - fac * 115, 50, 255); // Yellow with a richer tone
-        } else if (c <= 100) {
-            float fac = (c - 40) / 60.0;
-            return color(255, 140 - fac * 140, 0, 255); // Pink transition
-        } else if (c <= 200) {
-            float fac = (c - 100) / 100.0;
-            return color(255, 0, fac * 255, 255); // Purple transition
-        } else if (c <= 500) {
-            float fac = (c - 200) / 300.0;
-            return color(255 - fac * 141, 20, 255, 255); // Deeper purple to cyan
-        } else if (c <= 1000) {
-            float fac = (c - 500) / 500.0;
-            return color(114 - fac * 114, fac * 255, 255, 255); // Cyan transition
-        } else if (c <= 4000) {
-            float fac = (c - 1000) / 3000.0;
-            return color(225 + fac * 30, 210 - fac * 20, 30 + fac * 50); // Gold with richer, deeper hues
+        if (currentSwatterCount <= 5) {
+            float fac = currentSwatterCount / 5.0;
+            newColor = color(0, fac * 140, 255 - fac * 255, 255); // Blue transition
+        } else if (currentSwatterCount <= 20) {
+            float fac = (currentSwatterCount - 5) / 15.0;
+            newColor = color(fac * 255, 140 + fac * 155, 20, 255); // Green with a higher base for better contrast
+        } else if (currentSwatterCount <= 40) {
+            float fac = (currentSwatterCount - 20) / 20.0;
+            newColor = color(255, 255 - fac * 115, 50, 255); // Yellow with a richer tone
+        } else if (currentSwatterCount <= 100) {
+            float fac = (currentSwatterCount - 40) / 60.0;
+            newColor = color(255, 140 - fac * 140, 0, 255); // Red at 100 into Pink transition at 150
+        } else if (currentSwatterCount <= 200) {
+            float fac = (currentSwatterCount - 100) / 100.0;
+            newColor = color(255, 0, fac * 255, 255); // Purple transition
+        } else if (currentSwatterCount <= 500) {
+            float fac = (currentSwatterCount - 200) / 300.0;
+            newColor = color(255 - fac * 141, 20, 255, 255); // Deeper purple to cyan
+        } else if (currentSwatterCount <= 1000) {
+            float fac = (currentSwatterCount - 500) / 500.0;
+            newColor = color(114 - fac * 114, fac * 255, 255, 255); // Cyan transition
+        } else if (currentSwatterCount <= 4000) {
+            float fac = (currentSwatterCount - 1000) / 3000.0;
+            newColor = color(225 + fac * 30, 210 - fac * 20, 30 + fac * 50); // Gold with richer, deeper hues
         } else {
-            float fac = min(1, (c - 4000) / 6000.0);
-            return color(255, 202 + fac * 53, fac * 255); // Transition to white
+            float fac = min(1, (currentSwatterCount - 4000) / 6000.0);
+            newColor = color(255, 202 + fac * 53, fac * 255); // Transition to white
         }
     }
+    
+    // Cache the results
+    cachedColor = newColor;
+    lastSwatterCount = currentSwatterCount;
+    
+    return newColor;
 }
 
   color transitionColor(color a, color b, float prog){
@@ -102,11 +121,26 @@ color getColor() {
     return color(newR, newG, newB);
   }
   void drawSpider(Room room){
+    float[] realCoor = room.wallCoor_to_realCoor(coor);
+    
+    // Quick culling check before any drawing
+    g.pushMatrix();
+    aTranslate(realCoor);
+    float screenX = g.screenX(0, 0, 0);
+    float screenY = g.screenY(0, 0, 0);
+    g.popMatrix();
+    
+    // Check if spider is off screen (with margin for legs)
+    float margin = MAX_LEG_SPAN * 1.5; // Margin to account for legs
+    if (screenX < -margin || screenX > width + margin || 
+        screenY < -margin || screenY > height + margin) {
+        return; // Skip drawing if off screen
+    }
+    
     color c = getColor();
     if(this == highlight_spider){
       c = color(0,255,0);
     }
-    float[] realCoor = room.wallCoor_to_realCoor(coor);
     g.pushMatrix();
     aTranslate(realCoor);
     g.fill(c);
@@ -160,7 +194,7 @@ color getColor() {
         g.noStroke();
       }
     }
-  }
+}
   float[] multi(float[] a, float m){
     float[] result = new float[a.length];
     for(int i = 0; i < a.length; i++){
