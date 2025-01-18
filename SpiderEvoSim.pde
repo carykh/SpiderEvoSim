@@ -166,6 +166,16 @@ void setup(){
 ArrayList<Long> frameTimestamps = new ArrayList<>(); // To store frame timestamps
 float averageFps = 0; // Average FPS over the last 4 seconds
 
+// Add to global variables
+long physicsTiming = 0;
+long renderTiming = 0;
+long spiderPhysicsTiming = 0;
+long swatterPhysicsTiming = 0;
+String physicsStats = "";
+String renderStats = "";
+String spiderStats = "";
+String swatterStats = "";
+
 void draw() {
     // Capture current time in milliseconds
     long currentTime = millis();
@@ -181,13 +191,38 @@ void draw() {
         float elapsedSeconds = (frameTimestamps.get(frameTimestamps.size() - 1) - frameTimestamps.get(0)) / 1000.0f;
         averageFps = (frameTimestamps.size() - 1) / elapsedSeconds;
     }
+    long startFrame = System.nanoTime();
 
     // Original draw logic
     doMouse();
+    long startPhysics = System.nanoTime();
     doPhysics();
+    physicsTiming = System.nanoTime() - startPhysics;
+    
+    long startRender = System.nanoTime();
     drawVisuals();
+    renderTiming = System.nanoTime() - startRender;
+    
     image(g, 0, 0);
     drawUI();
+    
+    // Update stats every 30 frames
+    if (frames % 30 == 0) {
+        physicsStats = "Physics: " + (physicsTiming / 1_000_000) + "ms";
+        renderStats = "Render: " + (renderTiming / 1_000_000) + "ms";
+        spiderStats = "Spider Physics: " + (spiderPhysicsTiming / 1_000_000) + "ms";
+        swatterStats = "Swatter Physics: " + (swatterPhysicsTiming / 1_000_000) + "ms";
+    }
+    
+    // Display stats
+    fill(255);
+    textAlign(LEFT);
+    textSize(24);
+    text(physicsStats, 10, 140);
+    text(renderStats, 10, 170);
+    text(spiderStats, 10, 200);
+    text(swatterStats, 10, 230);
+    
     frames++;    
     if (camera[1] < -1) {
         camera[1] = -1;
@@ -217,28 +252,39 @@ Spider checkHighlightHelper(){
 }
 
 void drawUI() {
+    // Draw crosshair
     noStroke();
     fill(0);
-    float M = 1;
+    float M = 1;  // Move constants outside of method if possible
     float W = 20;
-    rect(width / 2 - M, height / 2 - W, M * 2, W * 2);
-    rect(width / 2 - W, height / 2 - M, W * 2, M * 2);
+    rect(width/2 - M, height/2 - W, M * 2, W * 2);
+    rect(width/2 - W, height/2 - M, W * 2, M * 2);
     
+    // Draw genome panel if spider is highlighted
     if (highlight_spider != null) {
         PGraphics genomePanel = highlight_spider.drawGenome();
         image(genomePanel, width - genomePanel.width - 30, height - genomePanel.height - 30);
     }
     
+    // Cache text settings to reduce state changes
+    fill(255);
+    
+    // Draw date
     textAlign(LEFT);
     textSize(50);
-    fill(255); // Set text color to white for visibility
     text(ticksToDate(ticks), 20, 65);
     
-    // Display FPS
+    // Draw FPS with less frequent updates
+    if (frames % 5 == 0) {  // Update FPS display every 10 frames
+        cachedFpsString = "FPS: " + nf(averageFps, 0, 2);
+    }
     textAlign(RIGHT);
     textSize(25);
-    text("FPS: " + nf(averageFps, 0, 2), width - 20, 30); // Display the FPS in the top-right corner
+    text(cachedFpsString, width - 20, 30);
 }
+
+// Cache FPS string
+String cachedFpsString = "FPS: 0.00";
 
 String dateNumToMonthString(int d) {
     String[] monthNames = {"January","February","March","April","May","June",
@@ -545,15 +591,20 @@ void drawButtons(){
 void aTranslate(float[] coor){
   g.translate(coor[0],coor[1],coor[2]);
 }
-void iterateSpiders(Room room){
-  for(int s = 0; s < spiders.size(); s++){
-    spiders.get(s).iterate(room, swatters, spiders);
-  }
+void iterateSpiders(Room room) {
+    long start = System.nanoTime();
+    for(int s = 0; s < spiders.size(); s++) {
+        spiders.get(s).iterate(room, swatters, spiders);
+    }
+    spiderPhysicsTiming = System.nanoTime() - start;
 }
-void iterateSwatters(Room room){
-  for(int s = 0; s < swatters.size(); s++){
-    swatters.get(s).iterate(room, spiders, swatters);
-  }
+
+void iterateSwatters(Room room) {
+    long start = System.nanoTime();
+    for(int s = 0; s < swatters.size(); s++) {
+        swatters.get(s).iterate(room, spiders, swatters);
+    }
+    swatterPhysicsTiming = System.nanoTime() - start;
 }
 void iterateButtons(Player player){
   for(int b = 0; b < buttons.size(); b++){
