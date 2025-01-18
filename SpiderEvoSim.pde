@@ -1,7 +1,6 @@
 import com.jogamp.newt.opengl.GLWindow;
 import processing.sound.*;
-import java.util.Arrays;
-
+//555Lines = Working branch + FPS counter
 int CENTER_X = 960; // try setting this to 960 or 961 if there is horizontal camera-pan-drifting
 String[] soundFileNames = {"slap0.wav","slap1.wav","slap2.wav","splat0.wav","splat1.wav","splat2.wav","boop1.wav","boop2.wav","jump.wav","news.wav"};
 SoundFile[] sfx;
@@ -122,89 +121,52 @@ void createSwatters(Room room, int START_SPIDER_COUNT){
   }
 }
 
-// Global variable to track loading status
-boolean resourcesLoaded = false;
-
-// Must be declared at the top level for Processing's size() to work
-void settings() {
-  size(1920,1080,P3D);
-}
+void setup(){
+  windowImages = new PImage[WINDOW_COUNT];
+  for(int w = 0; w < WINDOW_COUNT; w++){
+    windowImages[w] = loadImage("windows/w"+nf(w+1,4,0)+".png");
+  }
+  sfx = new SoundFile[soundFileNames.length];
+  for(int s = 0; s < soundFileNames.length; s++){
+    sfx[s] = new SoundFile(this, "audio/"+soundFileNames[s]);
+  }
   
-  void setup() {
-  // Initialize core components first
   float[][] walls = {{0,0},{975,0},{975,670},{1100,670},{1100,0},{2100,0},{2100,1000},{1100,1000},{1100,780},{975,780},{975,1000},{0,1000}};
   float[] zs = {0,500};
   float[] player_coor = {700,700,0,0};
   room = new Room(walls,zs);
   player = new Player(player_coor);
-  keyHandler = new KeyHandler();
-  
-  // Setup window
-  r = (GLWindow)surface.getNative();
-  r.confinePointer(true);
-  r.setPointerVisible(false);
-  g = createGraphics(1920,1080,P3D);
-  
-  // Start resource loading thread
-  thread("loadResources");
-}
-
-void loadResources() {
-  // Load windows in batches of 5
-  windowImages = new PImage[WINDOW_COUNT];
-  for(int w = 0; w < WINDOW_COUNT; w += 5) {
-    int endIndex = min(w + 5, WINDOW_COUNT);
-    for(int i = w; i < endIndex; i++) {
-      windowImages[i] = loadImage("windows/w"+nf(i+1,4,0)+".png");
-    }
-  }
-  
-  // Load sound files in batches
-  sfx = new SoundFile[soundFileNames.length];
-  for(int s = 0; s < soundFileNames.length; s += 3) {
-    int endIndex = min(s + 3, soundFileNames.length);
-    for(int i = s; i < endIndex; i++) {
-      sfx[i] = new SoundFile(this, "audio/"+soundFileNames[i]);
-    }
-  }
-  
-  // Initialize game objects
   spiders = createSpiders(room);
   createSwatters(room, 0);
+  keyHandler = new KeyHandler();
+  size(1920,1080,P3D);
   
-  // Initialize buttons
   buttons.add(new Button(0,1300,300,"Increase"));
   buttons.add(new Button(1,1450,300,"Decrease"));
+  
   buttons.add(new Button(2,1800,300,"Enlarge,Swatters"));
   buttons.add(new Button(3,1950,300,"Shrink,Swatters"));
+  
   buttons.add(new Button(4,1800,700,"Speed up,Swatters"));
   buttons.add(new Button(5,1950,700,"Slow down,Swatters"));
+  
   buttons.add(new Button(6,1450,700,"Invent,Swatters"));
   
-  // Initialize stat images
   for(int d = 0; d < STAT_COUNT; d++){
     statImages[d] = createGraphics(800,600);
   }
   
-  // Mark loading as complete
-  resourcesLoaded = true;
+  r = (GLWindow)surface.getNative();
+  r.confinePointer(true);
+  r.setPointerVisible(false);
+  g = createGraphics(1920,1080,P3D);
 }
-
 //FPS counter
 ArrayList<Long> frameTimestamps = new ArrayList<>(); // To store frame timestamps
 float averageFps = 0; // Average FPS over the last 4 seconds
 
 void draw() {
-  if (!resourcesLoaded) {
-    // Show loading screen
-    background(0);
-    fill(255);
-    textAlign(CENTER, CENTER);
-    textSize(32);
-    text("Loading...", width/2, height/2);
-    return;
-  }  
-  // Capture current time in milliseconds
+    // Capture current time in milliseconds
     long currentTime = millis();
     frameTimestamps.add(currentTime);
     
@@ -225,8 +187,7 @@ void draw() {
     drawVisuals();
     image(g, 0, 0);
     drawUI();
-    frames++;
-    
+    frames++;    
     if (camera[1] < -1) {
         camera[1] = -1;
     }
@@ -234,7 +195,6 @@ void draw() {
         camera[1] = 1;
     }
 }
-
 void checkHighlight(){
   if(!lock_highlight){
     highlight_spider = checkHighlightHelper();
@@ -290,6 +250,7 @@ String dateNumToMonthString(int d) {
         return monthNames[0] + " 1";
     }
     
+    int totalDays = 0;
     for (int m = 0; m < 12; m++) {
         if (d < monthDays[m]) {
             return monthNames[m] + " " + (d + 1);
@@ -385,50 +346,42 @@ float getBiodiversity(){
   }
   return total_diversity/GENOME_LENGTH*100;
 }
-
 void collectData() {
     if (ticks % CHANGE_WINDOWS_EVERY == 0) {
-        Window[] windowArray = windows.toArray(new Window[0]);
-        for (Window window : windowArray) {
-            window.updateShow();
+        for (int w = 0; w < windows.size(); w++) {
+            windows.get(w).updateShow();
         }
     }
-    
     if (ticks % (long)TICKS_PER_DAY == 0) {
-        // Pre-allocate arrays and reuse them
+        // Keep using Float[] to match Spider.writeData() method
         Float[] datum = new Float[STAT_COUNT];
-        Spider[] spiderArray = spiders.toArray(new Spider[0]);
-        float spiderCount = spiderArray.length;
-        
-        // Initialize datum array more efficiently
-        Arrays.fill(datum, 0.0f);
-        
-        // Process all spiders in a single pass
-        for (Spider spider : spiderArray) {
-            spider.writeData(datum);
+        for (int d = 0; d < STAT_COUNT; d++) {
+            datum[d] = 0.0f;  // Use 0.0f for Float
         }
         
-        // Batch process divisions
-        if (spiderCount > 0) {
-            float invCount = 1.0f / spiderCount;
-            for (int d = 0; d < STAT_COUNT; d++) {
-                datum[d] *= invCount;
-            }
+        // Get spider count before division
+        float spiderCount = spiders.size();
+        
+        for (int s = 0; s < spiders.size(); s++) {
+            spiders.get(s).writeData(datum);
+        }
+        
+        // Prevent division by zero and ensure precise division
+        for (int d = 0; d < STAT_COUNT; d++) {
+            datum[d] = spiderCount > 0 ? datum[d] / spiderCount : 0.0f;
         }
         
         datum[1] = (float)dailyDeaths;
         datum[2] = (float)(swattersSeenTotal - dailyDeaths);
         datum[4] = getBiodiversity();
         
-        // Store data and reset counters
         dailyDeaths = 0;
         swattersSeenTotal = 0;
         stats.add(datum);
         statNotes.add("");
         
-        // Cache graph dimensions and titles
-        final float[] GRAPH_DIM = {100, 120, 575, 400};
-        final String[] TITLES = {
+        float[] graph_dim = {100, 120, 575, 400};
+        String[] titles = {
             "Average Age (days)", 
             "Daily Deaths",
             "Daily Swatter Escapes", 
@@ -437,26 +390,18 @@ void collectData() {
             "Average Swatters Seen"
         };
         
-        // Pre-allocate graph data array
-        float[] graphData = new float[stats.size()];
-        // Cache the color value
-        color graphColor = color(128, 0, 0);
-        
-        // Draw all graphs with minimal object creation
         for (int d = 0; d < STAT_COUNT; d++) {
+            float[] graphData = new float[stats.size()];
             for (int i = 0; i < stats.size(); i++) {
                 graphData[i] = stats.get(i)[d];
             }
-            drawGraphOn(statImages[d], graphData, TITLES[d], GRAPH_DIM, graphColor, d);
+            drawGraphOn(statImages[d], graphData, titles[d], graph_dim, color(128,0,0), d);
         }
         
-        // Handle sound
-        float amp = 1.0f - min(0.8f, (playback_speed-1)/200.0f);
         sfx[9].play();
-        sfx[9].amp(amp);
+        sfx[9].amp(1.0 - min(0.8, (playback_speed-1)/200.0));
     }
 }
-
 float getUnit(float a, float b){
   float diff = b-a;
   float[] units = {0.0001,0.0002,0.0005,0.001,0.002,0.005,0.01,0.02,0.05,0.1,0.2,0.5,1,2,5,10,20,50,100,200,500,1000,2000,5000,10000,20000,50000,100000,200000,500000,1000000};
