@@ -1,6 +1,6 @@
 import com.jogamp.newt.opengl.GLWindow;
 import processing.sound.*;
-//555Lines = Working branch + FPS counter
+//582 Lines = Working branch + FPS counter
 int CENTER_X = 960; // try setting this to 960 or 961 if there is horizontal camera-pan-drifting
 String[] soundFileNames = {"slap0.wav","slap1.wav","slap2.wav","splat0.wav","splat1.wav","splat2.wav","boop1.wav","boop2.wav","jump.wav","news.wav"};
 SoundFile[] sfx;
@@ -250,7 +250,6 @@ String dateNumToMonthString(int d) {
         return monthNames[0] + " 1";
     }
     
-    int totalDays = 0;
     for (int m = 0; m < 12; m++) {
         if (d < monthDays[m]) {
             return monthNames[m] + " " + (d + 1);
