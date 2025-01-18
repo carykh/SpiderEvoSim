@@ -1,6 +1,7 @@
 import com.jogamp.newt.opengl.GLWindow;
 import processing.sound.*;
-//582 Lines = Working branch + FPS counter
+
+//Working branch + FPS counter
 int CENTER_X = 960; // try setting this to 960 or 961 if there is horizontal camera-pan-drifting
 String[] soundFileNames = {"slap0.wav","slap1.wav","slap2.wav","splat0.wav","splat1.wav","splat2.wav","boop1.wav","boop2.wav","jump.wav","news.wav"};
 SoundFile[] sfx;
@@ -9,7 +10,7 @@ Player player;
 KeyHandler keyHandler;
 int DIM_COUNT = 3;
 int SPIDER_ITER_BUCKETS = 4;
-float SWAT_SPEED = 0.001;
+float SWAT_SPEED = 0.001f;
 int R = 40;
 int STEPS_CYCLE = 3;
 int SIBSC = SPIDER_ITER_BUCKETS*STEPS_CYCLE;
@@ -21,7 +22,7 @@ int ticks = 0;
 int totalIndex = 0;
 int totalSwatterIndex = 0;
 float[] camera = {0,0};
-float EPS = 0.04;
+float EPS = 0.04f;
 PGraphics g;
 int playback_speed = 1;
 int dailyDeaths = 0;
@@ -115,7 +116,7 @@ ArrayList<Spider> createSpiders(Room room){
 void createSwatters(Room room, int START_SPIDER_COUNT){
   swatters = new ArrayList<Swatter>(0);
   for(int s = 0; s < START_SPIDER_COUNT; s++){
-    float perc = (s+0.5)/START_SPIDER_COUNT*1.4-0.4;
+    float perc = (s+0.5f)/START_SPIDER_COUNT*1.4f-0.4f;
     Swatter newSwatter = new Swatter(s, perc, room, swatters);
     swatters.add(newSwatter);
   }
@@ -227,11 +228,11 @@ Spider checkHighlightHelper(){
   Spider answer = null;
   float recordLowest = 1;
   if (mousePressed) {
-    for (int s = 0; s < spiders.size(); s++) {
-      float score = spiders.get(s).cursorOnSpider();
-      if (score > 0 && score < recordLowest) {
-        recordLowest = score;
-        answer = spiders.get(s);
+    for (Spider s : spiders) {
+  float score = s.cursorOnSpider();
+  if (score > 0 && score < recordLowest) {
+    recordLowest = score;
+    answer = s;
       }
     }
   }
@@ -314,8 +315,8 @@ String ticksToDate(long t) {
 void doMouse(){
   if(TRAP_MOUSE){
     if(frames >= 2){
-      camera[0] += (mouseX-CENTER_X)*0.005;
-      camera[1] += (mouseY-height/2)*0.005;
+      camera[0] += (mouseX-CENTER_X)*0.005f;
+      camera[1] += (mouseY-height/2)*0.005f;
     }
     r.warpPointer(width/2,height/2);
   }
@@ -339,20 +340,38 @@ void mousePressed() {
   }
   g.popMatrix();
 }
-void doPhysics(){
+void doPhysics(){ //<>//
     iterateButtons(player);
-    for(int p = 0; p < playback_speed; p++){
-        iterateSpiders(room);       
-        iterateSwatters(room);
-        collectData();       
-        ticks++;
+    
+    // Process multiple ticks in batches
+    int batchSize = 100;
+    int remainingTicks = playback_speed;
+    
+    while(remainingTicks > 0) {
+        int currentBatch = Math.min(batchSize, remainingTicks);
+        processPhysicsBatch(currentBatch);
+        remainingTicks -= currentBatch;
     }
+    
     player.takeInputs(keyHandler);
     player.doPhysics(room);
 }
 
+void processPhysicsBatch(int batchSize) {
+    for(int p = 0; p < batchSize; p++) {
+        iterateSpiders(room);       
+        iterateSwatters(room);
+        if(ticks % (long)TICKS_PER_DAY == 0) {
+            collectData();
+        }
+        ticks++;
+    }
+}
+
 float getBiodiversity(){
+  int spiderCount = spiders.size();
   float[] meanGenome = new float[GENOME_LENGTH];
+  java.util.Arrays.fill(meanGenome, 0);
   for(int g = 0; g < GENOME_LENGTH; g++){
     meanGenome[g] = 0;
   }
@@ -362,9 +381,10 @@ float getBiodiversity(){
     }
   }
   for(int g = 0; g < GENOME_LENGTH; g++){
-    meanGenome[g] /= spiders.size();
+    meanGenome[g] /= spiderCount;
   }
   float[] variances = new float[GENOME_LENGTH];
+  java.util.Arrays.fill(variances, 0);
   for(int g = 0; g < GENOME_LENGTH; g++){
     variances[g] = 0;
   }
@@ -375,7 +395,7 @@ float getBiodiversity(){
   }
   float total_diversity = 0;
   for(int g = 0; g < GENOME_LENGTH; g++){
-    total_diversity += sqrt(variances[g]/spiders.size());
+    total_diversity += sqrt(variances[g]/spiderCount);
   }
   return total_diversity/GENOME_LENGTH*100;
 }
@@ -395,7 +415,7 @@ void collectData() {
         // Get spider count before division
         float spiderCount = spiders.size();
         
-        for (int s = 0; s < spiders.size(); s++) {
+        for (int s = 0; s < spiderCount; s++) {
             spiders.get(s).writeData(datum);
         }
         

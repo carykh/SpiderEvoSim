@@ -35,7 +35,7 @@ class Spider{
     leg_coor = new float[LEG_COUNT][2];
     float ang = random(0,1);
     for(int L = 0; L < LEG_COUNT; L++){
-      float angL = (L+ang)*HALF PI;
+      float angL = (L+ang)*HALF_PI;
       int genome_index = L*GENES_PER_LEG+1;
       float distance = genome[genome_index];
       leg_coor[L][0] = coor[0]+cos(angL)*distance;
@@ -236,11 +236,9 @@ color getColor() {
 }
   void placeLegs(float[] center, int step, Room room, float darkest_sensed_shadow, ArrayList<Spider> spiders) {
     final float force_to_right_angles = 0.001f;
-    final float TWO_PI = PI * 2;
-    final float HALF_PI = PI / 2;
     
     float first_angle = 0;
-    boolean isDarkPattern = darkest_sensed_shadow < genome[12];
+    boolean isDarkPattern = darkest_sensed_shadow < genome[12]; //<>//
     int baseIndex = isDarkPattern ? 6 : 0;
     
     for(int L = 0; L < LEG_COUNT; L++) {
