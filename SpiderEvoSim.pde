@@ -122,6 +122,7 @@ void createSwatters(Room room, int START_SPIDER_COUNT){
 }
 
 void setup(){
+  frameRate(60); //Frame rate limit for physics
   windowImages = new PImage[WINDOW_COUNT];
   for(int w = 0; w < WINDOW_COUNT; w++){
     windowImages[w] = loadImage("windows/w"+nf(w+1,4,0)+".png");
