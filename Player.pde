@@ -3,7 +3,7 @@ class Player{
   float[] lag_coor;
   float[] velo;
   float FRICTION = 0.85;
-  float ACCEL = 2;
+  float ACCEL = 1.8;
   float R_ACCEL = 0.05;
   float THICKNESS = 11;
   float EPS = 0.1;

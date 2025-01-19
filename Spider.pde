@@ -14,6 +14,14 @@ class Spider{
   Spider parent;
   ArrayList<Integer> swattersSeen = new ArrayList<Integer>(0); 
   
+  // Add these as class fields
+  private final float HALF_PI = PI / 2;
+  private final float TWO_PI = PI * 2;
+  private final float MAX_LEG_SPAN_SQ = MAX_LEG_SPAN * MAX_LEG_SPAN;
+  // Add these fields at the top of the Spider class
+    private color cachedColor = -1;  // -1 means not calculated yet
+    private int lastSwatterCount = -1;  // Track when we need to recalculate
+    
   public Spider(int i, Room room){
     parent = null;
     genome = new float[GENOME_LENGTH];
@@ -27,7 +35,7 @@ class Spider{
     leg_coor = new float[LEG_COUNT][2];
     float ang = random(0,1);
     for(int L = 0; L < LEG_COUNT; L++){
-      float angL = (L+ang)*PI/2;
+      float angL = (L+ang)*HALF_PI;
       int genome_index = L*GENES_PER_LEG+1;
       float distance = genome[genome_index];
       leg_coor[L][0] = coor[0]+cos(angL)*distance;
@@ -59,32 +67,130 @@ class Spider{
     g.popMatrix();
     return value;
   }
-  color getColor(){
-    int c = swattersSeen.size();
-    if(c == 0 || c == 1){
-      return color(0,0,0,255);
-    }else{
-      if(c < 6){
-        float fac = (c-1)/5.0;
-        return color(0,fac*140,255-fac*255,255);
-      }else{
-        float fac = min(1,(c-6)/19.0);
-        return color(255*fac,140-fac*140,0,255);
-      }
+color getColor() {
+    int currentSwatterCount = swattersSeen.size();
+    
+    // Return cached color if nothing has changed
+    if (cachedColor != -1 && currentSwatterCount == lastSwatterCount) {
+        return cachedColor;
     }
-  }
-  color transitionColor(color a, color b, float prog){
+    
+    // Use logarithmic scaling for smoother early progression
+    float logScale = currentSwatterCount > 0 ? log(currentSwatterCount + 1) / log(10000) : 0;
+    
+    // Calculate new color
+    color newColor;
+    
+    // Swatter count color progression:
+    // 0 swatters: Black (0,0,0)
+    // 1 swatters: Pure Blue
+    // 3 swatters: Transition Blue-teal
+    // 5 swatters: Light Teal
+    // 10 swatters: Pure Green
+    // 20 swatters: Light-ish Lime
+    // 40 swatters: Rich/normal Yellow
+    // ~75 swatters: Deepish Orange
+    // ~150 swatters: Red
+    // ~375 swatters: Hot Pink
+    // ~800 swatters: Purple
+    // ~1200 swatters: Transition Light blue
+    // ~1600 swatters: Cyan
+    // ~3200 swatters: Mint
+    // ~6400 swatters: Gold
+    // >=10000 swatters: White
+    
+    if (currentSwatterCount == 0) {
+    newColor = color(0, 0, 0, 255); // 0 swatters: Pure black
+} else if (logScale <= 0.08) {
+    // 1-3 swatters: Pure Blue
+    float fac = logScale / 0.08;
+    newColor = color(0, 0, fac * 255, 255);
+} else if (logScale <= 0.16) {
+    // 3-5 swatters: Light Teal
+    float fac = (logScale - 0.08) / 0.08;
+    newColor = color(0, fac * 64, 255, 255);
+} else if (logScale <= 0.24) {
+    // 5-10 swatters: Pure Green
+    float fac = (logScale - 0.16) / 0.08;
+    newColor = color(0, 128, 255 - fac * 255, 255);
+} else if (logScale <= 0.32) {
+    // 10-20 swatters: Light-ish Lime
+    float fac = (logScale - 0.24) / 0.08;
+    newColor = color(fac * 128, 128 + fac * 127, 0, 255);
+} else if (logScale <= 0.40) {
+    // 20-40 swatters: Rich/normal Yellow
+    float fac = (logScale - 0.32) / 0.08;
+    newColor = color(128 + fac * 127, 220, 0, 255);
+} else if (logScale <= 0.48) {
+    // 40-75 swatters: Deepish Orange
+    float fac = (logScale - 0.40) / 0.08;
+    newColor = color(255, 220 - fac * 92, 0, 255);
+} else if (logScale <= 0.56) {
+    // 75-150 swatters: Red
+    float fac = (logScale - 0.48) / 0.08;
+    newColor = color(255, 128 - fac * 128, 0, 255);
+} else if (logScale <= 0.64) {
+    // 150-375 swatters: Hot Pink
+    float fac = (logScale - 0.56) / 0.08;
+    newColor = color(255, 0 + fac * 20, 0 + fac * 147, 255);
+} else if (logScale <= 0.72) {
+    // 375-800 swatters: Purple
+    float fac = (logScale - 0.64) / 0.08;
+    newColor = color(255 - fac * 127, 20 - fac * 20, 147 - fac * 19, 255);
+} else if (logScale <= 0.80) {
+    // 800-1200 swatters: Light Blue
+    float fac = (logScale - 0.72) / 0.08;
+    newColor = color(128 - fac * 128, 0 + fac * 255, 128 + fac * 127, 255);
+} else if (logScale <= 0.88) {
+    // 1200-1600 swatters: Cyan
+    float fac = (logScale - 0.80) / 0.08;
+    newColor = color(0 + fac * 98, 255, 255 - fac * 111, 255);
+} else if (logScale <= 0.96) {
+    // 1600-6400 swatters: Mint
+    float fac = (logScale - 0.88) / 0.08;
+    newColor = color(98 + fac * 157, 255 - fac * 40, 144 - fac * 144, 255);
+} else {
+    // 6400-9999 swatters: Gold
+    float fac = (logScale - 0.96) / 0.04;
+    newColor = color(255, 215 + fac * 40, 0 + fac * 255, 255);
+    // >9999 swatters: White
+}
+    
+    // Cache the results
+    cachedColor = newColor;
+    lastSwatterCount = currentSwatterCount;
+    
+    return newColor;
+}
+
+color transitionColor(color a, color b, float prog) {
     float newR = lerp(red(a), red(b), prog);
     float newG = lerp(green(a), green(b), prog);
     float newB = lerp(blue(a), blue(b), prog);
-    return color(newR, newG, newB);
-  }
+    float newA = lerp(alpha(a), alpha(b), prog);
+    return color(newR, newG, newB, newA);
+}
   void drawSpider(Room room){
+    float[] realCoor = room.wallCoor_to_realCoor(coor);
+    
+    // Quick culling check before any drawing
+    g.pushMatrix();
+    aTranslate(realCoor);
+    float screenX = g.screenX(0, 0, 0);
+    float screenY = g.screenY(0, 0, 0);
+    g.popMatrix();
+    
+    // Check if spider is off screen (with margin for legs)
+    float margin = MAX_LEG_SPAN * 1.5; // Margin to account for legs
+    if (screenX < -margin || screenX > width + margin || 
+        screenY < -margin || screenY > height + margin) {
+        return; // Skip drawing if off screen
+    }
+    
     color c = getColor();
     if(this == highlight_spider){
       c = color(0,255,0);
     }
-    float[] realCoor = room.wallCoor_to_realCoor(coor);
     g.pushMatrix();
     aTranslate(realCoor);
     g.fill(c);
@@ -138,7 +244,7 @@ class Spider{
         g.noStroke();
       }
     }
-  }
+}
   float[] multi(float[] a, float m){
     float[] result = new float[a.length];
     for(int i = 0; i < a.length; i++){
@@ -153,62 +259,73 @@ class Spider{
     }
     return result;
   }
-  float[] getWeightedCenter(int step, Room room, float darkest_sensed_shadow){
-    float[] sum_coor = {0,0};
-    float sum_weight = 0;
-    for(int L = 0; L < LEG_COUNT; L++){
-      int genome_index = L*GENES_PER_LEG+2*step;
-      if(darkest_sensed_shadow < genome[L*GENES_PER_LEG+12]){ // it's below the threshold, so do the dark pattern
-        genome_index += 6;
-      }
-      float weight = genome[genome_index];
-      sum_weight += weight;
-      for(int d = 0; d < 2; d++){
-        sum_coor[d] += leg_coor[L][d]*weight;
-      }
+  float[] getWeightedCenter(int step, Room room, float darkest_sensed_shadow) {
+    float sumX = 0, sumY = 0;
+    float sumWeight = 0;
+    
+    boolean isDarkPattern = darkest_sensed_shadow < genome[12];
+    int baseIndex = isDarkPattern ? 6 : 0;
+    
+    for(int L = 0; L < LEG_COUNT; L++) {
+        int genomeIndex = L * GENES_PER_LEG + 2 * step + baseIndex;
+        float weight = genome[genomeIndex];
+        sumWeight += weight;
+        
+        float legX = leg_coor[L][0]; //<>//
+        float legY = leg_coor[L][1];
+        sumX += legX * weight;
+        sumY += legY * weight;
     }
-    float rx = sum_coor[0]/sum_weight;
-    float ry = sum_coor[1]/sum_weight;
-    float[] result = {rx, ry};
-    return result;
-  }
-  void placeLegs(float[] center, int step, Room room, float darkest_sensed_shadow, ArrayList<Spider> spiders){
-    float force_to_right_angles = 0.001; // how strongly should the spider's legs be dragged back into right angles?
+    
+    float invWeight = 1.0f / sumWeight;
+    return new float[] {sumX * invWeight, sumY * invWeight};
+}
+  void placeLegs(float[] center, int step, Room room, float darkest_sensed_shadow, ArrayList<Spider> spiders) {
+    final float force_to_right_angles = 0.001f;
+    
     float first_angle = 0;
-    for(int L = 0; L < LEG_COUNT; L++){
-      int genome_index = L*GENES_PER_LEG+2*step+1;
-      if(darkest_sensed_shadow < genome[L*GENES_PER_LEG+12]){ // it's below the threshold, so do the dark pattern
-        genome_index += 6;
-      }
-      float distance = genome[genome_index]*MAX_LEG_SPAN;
-      float delta_x = leg_coor[L][0]-center[0];
-      float delta_y = leg_coor[L][1]-center[1];
-      float angle = atan2(delta_y,delta_x);
-      if(L == 0){
-        first_angle = angle;
-      }else{
-        float desired_angle = first_angle+PI/2*L;
-        float move = (desired_angle-angle);
-        while(move > PI){
-          move -= 2*PI;
+    boolean isDarkPattern = darkest_sensed_shadow < genome[12]; //<>//
+    int baseIndex = isDarkPattern ? 6 : 0;
+    
+    for(int L = 0; L < LEG_COUNT; L++) {
+        int genomeIndex = L * GENES_PER_LEG + 2 * step + baseIndex + 1;
+        float distance = genome[genomeIndex] * MAX_LEG_SPAN;
+        
+        float dx = leg_coor[L][0] - center[0];
+        float dy = leg_coor[L][1] - center[1];
+        float angle = atan2(dy, dx);
+        
+        if(L == 0) {
+            first_angle = angle;
+        } else {
+            float desired_angle = first_angle + L * HALF_PI;
+            float move = desired_angle - angle;
+            
+            // Normalize angle difference more efficiently
+            if(move > PI) move -= TWO_PI;
+            else if(move < -PI) move += TWO_PI;
+            
+            angle += force_to_right_angles * move;
         }
-        while(move < -PI){
-          move += 2*PI;
-        }
-        angle += force_to_right_angles*move;
-      }
-      leg_coor[L][0] = center[0]+cos(angle)*distance;
-      leg_coor[L][1] = center[1]+sin(angle)*distance;
+        
+        leg_coor[L][0] = center[0] + cos(angle) * distance;
+        leg_coor[L][1] = center[1] + sin(angle) * distance;
     }
-    coor = getWeightedCenter(step,room,darkest_sensed_shadow);
-    for(int d = 0; d < 2; d++){
-      if(coor[d] < 0){
-        shiftAllBy(d,room.getMaxDim(d));
-      }else if(coor[d] >= room.getMaxDim(d)){
-        shiftAllBy(d,-room.getMaxDim(d));
-      }
-    }
-  }
+    
+    coor = center;
+    checkBoundaries(room);
+}
+
+private void checkBoundaries(Room room) {
+    float maxX = room.getMaxDim(0);
+    float maxY = room.getMaxDim(1);
+    
+    if(coor[0] < 0) shiftAllBy(0, maxX);
+    else if(coor[0] >= maxX) shiftAllBy(0, -maxX);
+    
+    if(coor[1] < 0) shiftAllBy(1, maxY);
+    else if(coor[1] >= maxY) shiftAllBy(1, -maxY);
+}
   void shiftAllBy(int dim, float amt){
     coor[dim] += amt;
     for(int L = 0; L < LEG_COUNT; L++){
@@ -221,31 +338,67 @@ class Spider{
       move(room, cycle, swatters, spiders);
     }
   }
-  float getDarkestShadow(){
-    float darkest_sensed_shadow = 1.0;
-    for(int s = 0; s < swatters.size(); s++){
-      Swatter sw = swatters.get(s);
-      float x = sw.coor[0];
-      float y1 = sw.coor[1]-R;
-      float y2 = sw.coor[1]+R;
-      for(int L = 0; L < LEG_COUNT; L++){
-        if(abs(leg_coor[L][0]-sw.coor[0]) < R && abs(leg_coor[L][1]-sw.coor[1]) < R){ // it's under the shadow!
-          if(!swattersSeen.contains(sw.visIndex)){
-            swattersSeen.add(sw.visIndex);
-            swattersSeenTotal++;
-          }
-          darkest_sensed_shadow = min(darkest_sensed_shadow,max(sw.percentage,0));
+  private float lastDarkestShadow = 1.0f;
+  private int lastCheckTick = -1;
+
+float getDarkestShadow() {
+    if (lastCheckTick == ticks) {
+        return lastDarkestShadow;
+    }
+    
+    lastCheckTick = ticks;
+    float darkest_sensed_shadow = 1.0f;
+    float R2 = R * R;
+    
+    for(Swatter sw : swatters) {
+        float swX = sw.coor[0];
+        float swY = sw.coor[1];
+        
+        // Quick AABB check before detailed collision
+        float minX = swX - R;
+        float maxX = swX + R;
+        float minY = swY - R;
+        float maxY = swY + R;
+        
+        boolean legFound = false;
+        for(int L = 0; L < LEG_COUNT && !legFound; L++) {
+            float legX = leg_coor[L][0];
+            float legY = leg_coor[L][1];
+            
+            if(legX >= minX && legX <= maxX && 
+               legY >= minY && legY <= maxY) {
+                
+                float dx = legX - swX;
+                float dy = legY - swY;
+                float distSquared = dx * dx + dy * dy;
+                
+                if(distSquared < R2) {
+                    if(!swattersSeen.contains(sw.visIndex)) {
+                        swattersSeen.add(sw.visIndex);
+                        swattersSeenTotal++;
+                    }
+                    darkest_sensed_shadow = Math.min(darkest_sensed_shadow, 
+                                                   Math.max(sw.percentage, 0));
+                    legFound = true; // Exit early if we found a collision
+                }
+            }
         }
-      }
     }
     return darkest_sensed_shadow;
-  }
-  void move(Room room, int cycle, ArrayList<Swatter> swatters, ArrayList<Spider> spiders){
+}
+  void move(Room room, int cycle, ArrayList<Swatter> swatters, ArrayList<Spider> spiders) {
+    // Cache frequently used values
     float darkest_sensed_shadow = getDarkestShadow();
     int step = cycle/SPIDER_ITER_BUCKETS;
+    
+    // Pre-calculate indices and thresholds once
+    boolean isDarkPattern = darkest_sensed_shadow < genome[12];
+    int baseIndex = isDarkPattern ? 6 : 0;
+    
+    // Get weighted center in one pass
     float[] weightedCenter = getWeightedCenter(step, room, darkest_sensed_shadow);
     placeLegs(weightedCenter, step, room, darkest_sensed_shadow, spiders);
-  }
+}
   int whereInCycle(int offset){
     return (ticks+offset-ITER_TIME+SIBSC)%SIBSC;
   }

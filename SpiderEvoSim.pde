@@ -1,6 +1,7 @@
 import com.jogamp.newt.opengl.GLWindow;
 import processing.sound.*;
 
+//Working branch + FPS counter
 int CENTER_X = 960; // try setting this to 960 or 961 if there is horizontal camera-pan-drifting
 String[] soundFileNames = {"slap0.wav","slap1.wav","slap2.wav","splat0.wav","splat1.wav","splat2.wav","boop1.wav","boop2.wav","jump.wav","news.wav"};
 SoundFile[] sfx;
@@ -9,7 +10,7 @@ Player player;
 KeyHandler keyHandler;
 int DIM_COUNT = 3;
 int SPIDER_ITER_BUCKETS = 4;
-float SWAT_SPEED = 0.001;
+float SWAT_SPEED = 0.001f;
 int R = 40;
 int STEPS_CYCLE = 3;
 int SIBSC = SPIDER_ITER_BUCKETS*STEPS_CYCLE;
@@ -21,14 +22,16 @@ int ticks = 0;
 int totalIndex = 0;
 int totalSwatterIndex = 0;
 float[] camera = {0,0};
-float EPS = 0.04;
+float EPS = 0.04f;
 PGraphics g;
 int playback_speed = 1;
 int dailyDeaths = 0;
 int swattersSeenTotal = 0;
-float TICKS_PER_DAY = 10000;
+float TICKS_PER_DAY = 10000.0f;  // Keep as float but use explicit f suffix
+float PER_DAY = 10000.0f;
 boolean TRAP_MOUSE = true;
 boolean lock_highlight = false;
+
 GLWindow r;
 
 int LEG_COUNT = 4;
@@ -58,8 +61,8 @@ float sig(float a){
 float sig_inv(float a){
   return log(a/(1-a));
 }
-float ticksToDays(float age){
-  return age/TICKS_PER_DAY;
+float ticksToDays(long age) {
+    return age / TICKS_PER_DAY;
 }
 color darken(color c, float perc){
     float newR = red(c)*perc;
@@ -92,7 +95,15 @@ float[][] deepCopy(float[][] input){
   return result;
 }
 
-
+// Helper function to safely handle large numbers
+double safeAdd(double a, double b) {
+    double result = a + b;
+    if (result == Double.POSITIVE_INFINITY || result == Double.NEGATIVE_INFINITY) {
+        println("Warning: Arithmetic overflow in calculations");
+        return Double.MAX_VALUE;
+    }
+    return result;
+}
 ArrayList<Spider> createSpiders(Room room){
   int START_SPIDER_COUNT = 300;
   ArrayList<Spider> result = new ArrayList<Spider>(0);
@@ -105,13 +116,14 @@ ArrayList<Spider> createSpiders(Room room){
 void createSwatters(Room room, int START_SPIDER_COUNT){
   swatters = new ArrayList<Swatter>(0);
   for(int s = 0; s < START_SPIDER_COUNT; s++){
-    float perc = (s+0.5)/START_SPIDER_COUNT*1.4-0.4;
+    float perc = (s+0.5f)/START_SPIDER_COUNT*1.4f-0.4f;
     Swatter newSwatter = new Swatter(s, perc, room, swatters);
     swatters.add(newSwatter);
   }
 }
 
 void setup(){
+  frameRate(60); //Frame rate limit for physics
   windowImages = new PImage[WINDOW_COUNT];
   for(int w = 0; w < WINDOW_COUNT; w++){
     windowImages[w] = loadImage("windows/w"+nf(w+1,4,0)+".png");
@@ -151,13 +163,61 @@ void setup(){
   r.setPointerVisible(false);
   g = createGraphics(1920,1080,P3D);
 }
-void draw(){
-  doMouse();
-  doPhysics();
-  drawVisuals();
-  image(g,0,0);
-  drawUI();
-  frames++;
+//FPS counter
+ArrayList<Long> frameTimestamps = new ArrayList<>(); // To store frame timestamps
+float averageFps = 0; // Average FPS over the last 4 seconds
+
+// Global timing variables
+long physicsTiming = 0;
+long renderTiming = 0;
+String physicsStats = "";
+String renderStats = "";
+
+void draw() {
+    // FPS calculation stays the same
+    long currentTime = millis();
+    frameTimestamps.add(currentTime);
+    while (frameTimestamps.size() > 0 && frameTimestamps.get(0) < currentTime - 4000) {
+        frameTimestamps.remove(0);
+    }
+    if (frameTimestamps.size() > 1) {
+        float elapsedSeconds = (frameTimestamps.get(frameTimestamps.size() - 1) - frameTimestamps.get(0)) / 1000.0f;
+        averageFps = (frameTimestamps.size() - 1) / elapsedSeconds;
+    }
+
+    doMouse();
+
+    long startPhysics = System.nanoTime();
+    doPhysics();
+    physicsTiming = System.nanoTime() - startPhysics;
+    
+    long startRender = System.nanoTime();
+    drawVisuals();
+    renderTiming = System.nanoTime() - startRender;
+    
+    image(g, 0, 0);
+    drawUI();
+    
+    // Update stats every 30 frames
+    if (frames % 30 == 0) {
+        physicsStats = "Physics: " + (physicsTiming / 1_000_000) + "ms";
+        renderStats = "Render: " + (renderTiming / 1_000_000) + "ms";
+    }
+    
+    // Display stats
+    fill(255);
+    textAlign(LEFT);
+    textSize(24);
+    text(physicsStats, 10, 140);
+    text(renderStats, 10, 170);
+    
+    frames++;    
+    if (camera[1] < -1) {
+        camera[1] = -1;
+    }
+    if (camera[1] > 1) {
+        camera[1] = 1;
+    }
 }
 void checkHighlight(){
   if(!lock_highlight){
@@ -167,57 +227,96 @@ void checkHighlight(){
 Spider checkHighlightHelper(){
   Spider answer = null;
   float recordLowest = 1;
-  for(int s = 0; s < spiders.size(); s++){
-    float score = spiders.get(s).cursorOnSpider();
-    if(score > 0 && score < recordLowest){
-      recordLowest = score;
-      answer = spiders.get(s);
+  if (mousePressed) {
+    for (Spider s : spiders) {
+  float score = s.cursorOnSpider();
+  if (score > 0 && score < recordLowest) {
+    recordLowest = score;
+    answer = s;
+      }
     }
   }
   return answer;
 }
-void drawUI(){
-  noStroke();
-  fill(0);
-  float M = 1;
-  float W = 20;
-  rect(width/2-M,height/2-W,M*2,W*2);
-  rect(width/2-W,height/2-M,W*2,M*2);
-  if(highlight_spider != null){
-    PGraphics genomePanel = highlight_spider.drawGenome();
-    image(genomePanel,width-genomePanel.width-30,height-genomePanel.height-30);
-  }
-  textAlign(LEFT);
-  textSize(50);
-  text(ticksToDate(ticks),20,65);
+
+void drawUI() {
+    // Draw crosshair
+    noStroke();
+    fill(0);
+    float M = 1;  // Move constants outside of method if possible
+    float W = 20;
+    rect(width/2 - M, height/2 - W, M * 2, W * 2);
+    rect(width/2 - W, height/2 - M, W * 2, M * 2);
+    
+    // Draw genome panel if spider is highlighted
+    if (highlight_spider != null) {
+        PGraphics genomePanel = highlight_spider.drawGenome();
+        image(genomePanel, width - genomePanel.width - 30, height - genomePanel.height - 30);
+    }
+    
+    // Cache text settings to reduce state changes
+    fill(255);
+    
+    // Draw date
+    textAlign(LEFT);
+    textSize(50);
+    text(ticksToDate(ticks), 20, 65);
+    
+    // Draw FPS with less frequent updates
+    if (frames % 5 == 0) {  // Update FPS display every 10 frames
+        cachedFpsString = "FPS: " + nf(averageFps, 0, 2);
+    }
+    textAlign(RIGHT);
+    textSize(25);
+    text(cachedFpsString, width - 20, 30);
 }
 
-String dateNumToMonthString(int d){
-  String[] monthNames = {"January","February","March","April","May","June","July","August","September","October","November","December"};
-  int[] monthDays = {31,28,31,30,31,30,31,31,30,31,30,31};
-  for(int m = 0; m < 12; m++){
-    if(d < monthDays[m]){
-      return monthNames[m]+" "+(d+1);
+// Cache FPS string
+String cachedFpsString = "FPS: 0.00";
+
+String dateNumToMonthString(int d) {
+    String[] monthNames = {"January","February","March","April","May","June",
+                          "July","August","September","October","November","December"};
+    int[] monthDays = {31,28,31,30,31,30,31,31,30,31,30,31};
+    
+    // Bounds check
+    if (d < 0) {
+        println("Warning: Negative date value");
+        return monthNames[0] + " 1";
     }
-    d -= monthDays[m];
-  }
-  return monthNames[11]+monthDays[11];
+    
+    for (int m = 0; m < 12; m++) {
+        if (d < monthDays[m]) {
+            return monthNames[m] + " " + (d + 1);
+        }
+        d -= monthDays[m];
+    }
+    return monthNames[11] + " " + monthDays[11];
 }
-String ticksToDate(int t){
-  float daysTotalFloat = ticksToDays(t)+0.5;
-  int daysTotalInt = (int)daysTotalFloat;
-  float timeOfDay = daysTotalFloat%1.0;
-  int years = daysTotalInt/365;
-  int days = daysTotalInt%365;
-  String[] TOD_LIST = {"Night","Sunrise","Morning","Afternoon","Sunset","Evening"};
-  String TOD = TOD_LIST[(int)(timeOfDay*6)];
-  return "Year "+(years+1)+", "+dateNumToMonthString(days)+" - "+TOD;
+String ticksToDate(long t) {
+    float daysTotalFloat = ticksToDays(t) + 0.5f;
+    int daysTotalInt = (int)daysTotalFloat;
+    float timeOfDay = daysTotalFloat % 1.0f;
+    
+    // Add bounds checking
+    if (daysTotalInt > 365_000_000) {  
+        println("Warning: Date calculation overflow");
+        return "Year MAX";
+    }
+    
+    int years = daysTotalInt / 365;
+    int days = daysTotalInt % 365;
+    
+    String[] TOD_LIST = {"Night","Sunrise","Morning","Afternoon","Sunset","Evening"};
+    String TOD = TOD_LIST[(int)(timeOfDay * 6)];
+    
+    return "Year " + (years + 1) + ", " + dateNumToMonthString(days) + " - " + TOD;
 }
 void doMouse(){
   if(TRAP_MOUSE){
     if(frames >= 2){
-      camera[0] += (mouseX-CENTER_X)*0.005;
-      camera[1] += (mouseY-height/2)*0.005;
+      camera[0] += (mouseX-CENTER_X)*0.005f;
+      camera[1] += (mouseY-height/2)*0.005f;
     }
     r.warpPointer(width/2,height/2);
   }
@@ -241,20 +340,38 @@ void mousePressed() {
   }
   g.popMatrix();
 }
-void doPhysics(){
-  iterateButtons(player);
-  for(int p = 0; p < playback_speed; p++){
-    iterateSpiders(room);
-    iterateSwatters(room);
-    collectData();
-    ticks++;
-  }
-  player.takeInputs(keyHandler);
-  player.doPhysics(room);
+void doPhysics(){ //<>//
+    iterateButtons(player);
+    
+    // Process multiple ticks in batches
+    int batchSize = 100;
+    int remainingTicks = playback_speed;
+    
+    while(remainingTicks > 0) {
+        int currentBatch = Math.min(batchSize, remainingTicks);
+        processPhysicsBatch(currentBatch);
+        remainingTicks -= currentBatch;
+    }
+    
+    player.takeInputs(keyHandler);
+    player.doPhysics(room);
+}
+
+void processPhysicsBatch(int batchSize) {
+    for(int p = 0; p < batchSize; p++) {
+        iterateSpiders(room);       
+        iterateSwatters(room);
+        if(ticks % (long)TICKS_PER_DAY == 0) {
+            collectData();
+        }
+        ticks++;
+    }
 }
 
 float getBiodiversity(){
+  int spiderCount = spiders.size();
   float[] meanGenome = new float[GENOME_LENGTH];
+  java.util.Arrays.fill(meanGenome, 0);
   for(int g = 0; g < GENOME_LENGTH; g++){
     meanGenome[g] = 0;
   }
@@ -264,9 +381,10 @@ float getBiodiversity(){
     }
   }
   for(int g = 0; g < GENOME_LENGTH; g++){
-    meanGenome[g] /= spiders.size();
+    meanGenome[g] /= spiderCount;
   }
   float[] variances = new float[GENOME_LENGTH];
+  java.util.Arrays.fill(variances, 0);
   for(int g = 0; g < GENOME_LENGTH; g++){
     variances[g] = 0;
   }
@@ -277,47 +395,65 @@ float getBiodiversity(){
   }
   float total_diversity = 0;
   for(int g = 0; g < GENOME_LENGTH; g++){
-    total_diversity += sqrt(variances[g]/spiders.size());
+    total_diversity += sqrt(variances[g]/spiderCount);
   }
   return total_diversity/GENOME_LENGTH*100;
 }
-void collectData(){
-  if(ticks%CHANGE_WINDOWS_EVERY == 0){
-    for(int w = 0; w < windows.size(); w++){
-      windows.get(w).updateShow();
+void collectData() {
+    if (ticks % CHANGE_WINDOWS_EVERY == 0) {
+        for (int w = 0; w < windows.size(); w++) {
+            windows.get(w).updateShow();
+        }
     }
-  }
-  if(ticks%TICKS_PER_DAY == 0){
-    Float[] datum = new Float[STAT_COUNT];
-    for(int d = 0; d < STAT_COUNT; d++){
-      datum[d] = new Float(0);
+    if (ticks % (long)TICKS_PER_DAY == 0) {
+        // Keep using Float[] to match Spider.writeData() method
+        Float[] datum = new Float[STAT_COUNT];
+        for (int d = 0; d < STAT_COUNT; d++) {
+            datum[d] = 0.0f;  // Use 0.0f for Float
+        }
+        
+        // Get spider count before division
+        float spiderCount = spiders.size();
+        
+        for (int s = 0; s < spiderCount; s++) {
+            spiders.get(s).writeData(datum);
+        }
+        
+        // Prevent division by zero and ensure precise division
+        for (int d = 0; d < STAT_COUNT; d++) {
+            datum[d] = spiderCount > 0 ? datum[d] / spiderCount : 0.0f;
+        }
+        
+        datum[1] = (float)dailyDeaths;
+        datum[2] = (float)(swattersSeenTotal - dailyDeaths);
+        datum[4] = getBiodiversity();
+        
+        dailyDeaths = 0;
+        swattersSeenTotal = 0;
+        stats.add(datum);
+        statNotes.add("");
+        
+        float[] graph_dim = {100, 120, 575, 400};
+        String[] titles = {
+            "Average Age (days)", 
+            "Daily Deaths",
+            "Daily Swatter Escapes", 
+            "Sensitivity (out of 100)", 
+            "Total Biodiversity (out of 100)", 
+            "Average Swatters Seen"
+        };
+        
+        for (int d = 0; d < STAT_COUNT; d++) {
+            float[] graphData = new float[stats.size()];
+            for (int i = 0; i < stats.size(); i++) {
+                graphData[i] = stats.get(i)[d];
+            }
+            drawGraphOn(statImages[d], graphData, titles[d], graph_dim, color(128,0,0), d);
+        }
+        
+        sfx[9].play();
+        sfx[9].amp(1.0 - min(0.8, (playback_speed-1)/200.0));
     }
-    for(int s = 0; s < spiders.size(); s++){
-      spiders.get(s).writeData(datum);
-    }
-    for(int d = 0; d < STAT_COUNT; d++){
-      datum[d] /= spiders.size();
-    }
-    datum[1] = (float)dailyDeaths;
-    datum[2] = (float)(swattersSeenTotal-dailyDeaths);
-    datum[4] = getBiodiversity();
-    dailyDeaths = 0;
-    swattersSeenTotal = 0;
-    stats.add(datum);
-    statNotes.add("");
-    float[] graph_dim = {100,120,575,400};
-    String[] titles = {"Average Age (days)", "Daily Deaths",
-  "Daily Swatter Escapes", "Sensitivity (out of 100)", "Total Biodiversity (out of 100)", "Average Swatters Seen"};
-    for(int d = 0; d < STAT_COUNT; d++){
-      float[] graphData = new float[stats.size()];
-      for(int i = 0; i < stats.size(); i++){
-        graphData[i] = stats.get(i)[d];
-      }
-      drawGraphOn(statImages[d],graphData,titles[d],graph_dim, color(128,0,0), d);
-    }
-    sfx[9].play();
-    sfx[9].amp(1.0-min(0.8,(playback_speed-1)/200.0));
-  }
 }
 float getUnit(float a, float b){
   float diff = b-a;
@@ -421,8 +557,13 @@ void drawGraphOn(PGraphics s, float[] data, String title, float[] graph_dim, col
   s.text(title,graph_dim[0]+graph_dim[2]*0.5,graph_dim[1]-50);
   s.endDraw();
 }
-float daylight(){
-  return 0.5+0.5*cos(ticksToDays(ticks)*(2*PI));
+float daylight() {
+    float days = ticksToDays(ticks);
+    if (Float.isInfinite(days) || Float.isNaN(days)) {
+        println("Warning: Day calculation overflow in daylight()");
+        return 0.5f;
+    }
+    return 0.5f + 0.5f * cos(days * (2 * PI));
 }
 void drawVisuals(){
   g.beginDraw();
@@ -457,15 +598,16 @@ void drawButtons(){
 void aTranslate(float[] coor){
   g.translate(coor[0],coor[1],coor[2]);
 }
-void iterateSpiders(Room room){
-  for(int s = 0; s < spiders.size(); s++){
-    spiders.get(s).iterate(room, swatters, spiders);
-  }
+void iterateSpiders(Room room) {
+    for(int s = 0; s < spiders.size(); s++) {
+        spiders.get(s).iterate(room, swatters, spiders);
+    }
 }
-void iterateSwatters(Room room){
-  for(int s = 0; s < swatters.size(); s++){
-    swatters.get(s).iterate(room, spiders, swatters);
-  }
+
+void iterateSwatters(Room room) {
+    for(int s = 0; s < swatters.size(); s++) { //<>//
+        swatters.get(s).iterate(room, spiders, swatters);
+    }
 }
 void iterateButtons(Player player){
   for(int b = 0; b < buttons.size(); b++){
