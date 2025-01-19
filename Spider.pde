@@ -97,63 +97,64 @@ color getColor() {
     // ~1600 swatters: Cyan
     // ~3200 swatters: Mint
     // ~6400 swatters: Gold
-    // >=00000 swatters: White
+    // >=10000 swatters: White
     
     if (currentSwatterCount == 0) {
-        newColor = color(0, 0, 0, 255); // 0 swatters: Pure black
-    } else if (logScale <= 0.08) {
-        // Black to blue (0-20 swatters)
-        float fac = logScale / 0.08;
-        newColor = color(0, 0, fac * 255, 255);
-    } else if (logScale <= 0.16) {
-        // Blue to teal (20-50 swatters)
-        float fac = (logScale - 0.08) / 0.08;
-        newColor = color(0, fac * 64, 255, 255);  // Changed from 128 to 64 for darker teal
-    } else if (logScale <= 0.24) {
-        // Teal to green (50-100 swatters)
-        float fac = (logScale - 0.16) / 0.08;
-        newColor = color(0, 128, 255 - fac * 255, 255);
-    } else if (logScale <= 0.32) {
-        // Green to lime (100-200 swatters)
-        float fac = (logScale - 0.24) / 0.08;
-        newColor = color(fac * 128, 128 + fac * 127, 0, 255);
-    } else if (logScale <= 0.40) {
-        // Lime to yellow (200-400 swatters)
-        float fac = (logScale - 0.32) / 0.08;
-        newColor = color(128 + fac * 127, 220, 0, 255);  // Changed from 255 to 220 for darker yellow
-    } else if (logScale <= 0.48) {
-        // Yellow to orange (400-800 swatters)
-        float fac = (logScale - 0.40) / 0.08;
-        newColor = color(255, 220 - fac * 92, 0, 255);  // Adjusted to match new yellow
-    } else if (logScale <= 0.56) {
-        // Orange to red (800-1,500 swatters)
-        float fac = (logScale - 0.48) / 0.08;
-        newColor = color(255, 128 - fac * 128, 0, 255);
-    } else if (logScale <= 0.64) {
-        // Red to hot pink (1,500-2,500 swatters)
-        float fac = (logScale - 0.56) / 0.08;
-        newColor = color(255, 0 + fac * 20, 0 + fac * 147, 255);
-    } else if (logScale <= 0.72) {
-        // Hot pink to purple (2,500-4,000 swatters)
-        float fac = (logScale - 0.64) / 0.08;
-        newColor = color(255 - fac * 127, 20 - fac * 20, 147 - fac * 19, 255);
-    } else if (logScale <= 0.80) {
-        // Purple to cyan (4,000-6,000 swatters)
-        float fac = (logScale - 0.72) / 0.08;
-        newColor = color(128 - fac * 128, 0 + fac * 255, 128 + fac * 127, 255);
-    } else if (logScale <= 0.88) {
-        // Cyan to mint (6,000-7,500 swatters)
-        float fac = (logScale - 0.80) / 0.08;
-        newColor = color(0 + fac * 98, 255, 255 - fac * 111, 255);
-    } else if (logScale <= 0.96) {
-        // Mint to gold (7,500-9,000 swatters)
-        float fac = (logScale - 0.88) / 0.08;
-        newColor = color(98 + fac * 157, 255 - fac * 40, 144 - fac * 144, 255);
-    } else {
-        // Gold to white (9,000-10,000 swatters)
-        float fac = (logScale - 0.96) / 0.04;
-        newColor = color(255, 215 + fac * 40, 0 + fac * 255, 255);
-    }
+    newColor = color(0, 0, 0, 255); // 0 swatters: Pure black
+} else if (logScale <= 0.08) {
+    // 1-3 swatters: Pure Blue
+    float fac = logScale / 0.08;
+    newColor = color(0, 0, fac * 255, 255);
+} else if (logScale <= 0.16) {
+    // 3-5 swatters: Light Teal
+    float fac = (logScale - 0.08) / 0.08;
+    newColor = color(0, fac * 64, 255, 255);
+} else if (logScale <= 0.24) {
+    // 5-10 swatters: Pure Green
+    float fac = (logScale - 0.16) / 0.08;
+    newColor = color(0, 128, 255 - fac * 255, 255);
+} else if (logScale <= 0.32) {
+    // 10-20 swatters: Light-ish Lime
+    float fac = (logScale - 0.24) / 0.08;
+    newColor = color(fac * 128, 128 + fac * 127, 0, 255);
+} else if (logScale <= 0.40) {
+    // 20-40 swatters: Rich/normal Yellow
+    float fac = (logScale - 0.32) / 0.08;
+    newColor = color(128 + fac * 127, 220, 0, 255);
+} else if (logScale <= 0.48) {
+    // 40-75 swatters: Deepish Orange
+    float fac = (logScale - 0.40) / 0.08;
+    newColor = color(255, 220 - fac * 92, 0, 255);
+} else if (logScale <= 0.56) {
+    // 75-150 swatters: Red
+    float fac = (logScale - 0.48) / 0.08;
+    newColor = color(255, 128 - fac * 128, 0, 255);
+} else if (logScale <= 0.64) {
+    // 150-375 swatters: Hot Pink
+    float fac = (logScale - 0.56) / 0.08;
+    newColor = color(255, 0 + fac * 20, 0 + fac * 147, 255);
+} else if (logScale <= 0.72) {
+    // 375-800 swatters: Purple
+    float fac = (logScale - 0.64) / 0.08;
+    newColor = color(255 - fac * 127, 20 - fac * 20, 147 - fac * 19, 255);
+} else if (logScale <= 0.80) {
+    // 800-1200 swatters: Light Blue
+    float fac = (logScale - 0.72) / 0.08;
+    newColor = color(128 - fac * 128, 0 + fac * 255, 128 + fac * 127, 255);
+} else if (logScale <= 0.88) {
+    // 1200-1600 swatters: Cyan
+    float fac = (logScale - 0.80) / 0.08;
+    newColor = color(0 + fac * 98, 255, 255 - fac * 111, 255);
+} else if (logScale <= 0.96) {
+    // 1600-6400 swatters: Mint
+    float fac = (logScale - 0.88) / 0.08;
+    newColor = color(98 + fac * 157, 255 - fac * 40, 144 - fac * 144, 255);
+} else {
+    // 6400-9999 swatters: Gold
+    float fac = (logScale - 0.96) / 0.04;
+    newColor = color(255, 215 + fac * 40, 0 + fac * 255, 255);
+    // >9999 swatters: White
+}
     
     // Cache the results
     cachedColor = newColor;
