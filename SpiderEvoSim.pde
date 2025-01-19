@@ -151,31 +151,40 @@ void setup(){
   r.setPointerVisible(false);
   g = createGraphics(1920,1080,P3D);
 }
-void draw(){
-  doMouse();
-  doPhysics();
-  drawVisuals();
-  image(g,0,0);
-  drawUI();
-  frames++;
+void draw() {
+    doMouse();
+    doPhysics();
+    drawVisuals();
+    image(g, 0, 0);
+    drawUI();
+    frames++;    
+    if (camera[1] < -1) {
+        camera[1] = -1;
+    }
+    if (camera[1] > 1) {
+        camera[1] = 1;
+    }
 }
 void checkHighlight(){
   if(!lock_highlight){
     highlight_spider = checkHighlightHelper();
   }
 }
-Spider checkHighlightHelper(){
+Spider checkHighlightHelper() {
   Spider answer = null;
   float recordLowest = 1;
-  for(int s = 0; s < spiders.size(); s++){
-    float score = spiders.get(s).cursorOnSpider();
-    if(score > 0 && score < recordLowest){
-      recordLowest = score;
-      answer = spiders.get(s);
+  if (mousePressed) {
+    for (int s = 0; s < spiders.size(); s++) {
+      float score = spiders.get(s).cursorOnSpider();
+      if (score > 0 && score < recordLowest) {
+        recordLowest = score;
+        answer = spiders.get(s);
+      }
     }
   }
   return answer;
 }
+
 void drawUI(){
   noStroke();
   fill(0);
